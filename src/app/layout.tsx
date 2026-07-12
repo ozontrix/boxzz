@@ -12,33 +12,84 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = "https://boxzz.in";
+const siteName = "Boxzz";
+const defaultTitle = "Boxzz — Premium Corrugated Boxes & Packaging Materials Manufacturer";
+const defaultDescription =
+  "India's trusted manufacturer of corrugated boxes, packaging tapes (Flipkart, Amazon), bubble wrap, poly bags, thermal labels & custom packaging. Bulk orders, wholesale pricing, PAN India delivery.";
+const ogImage = "/boxzz-logo.png";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
-    default: "Boxzz — Premium Packaging & Corrugated Box Manufacturer",
-    template: "%s | Boxzz",
+    default: defaultTitle,
+    template: `%s | ${siteName}`,
   },
-  description:
-    "India's trusted manufacturer of corrugated boxes, packaging tapes, bubble wrap, and custom packaging solutions. Bulk orders, wholesale pricing, pan-India delivery.",
+  description: defaultDescription,
   keywords: [
-    "corrugated boxes manufacturer",
-    "packaging materials",
-    "BOPP tape",
-    "bubble wrap",
-    "shipping boxes",
-    "custom packaging India",
-    "Boxzz",
+    "corrugated boxes manufacturer India",
+    "packaging materials supplier",
+    "3 ply corrugated boxes",
+    "5 ply corrugated boxes",
+    "7 ply corrugated boxes",
+    "Flipkart packaging tape",
+    "Amazon packaging tape",
+    "BOPP tape wholesale",
+    "paper bubble wrap",
+    "poly bags with POD",
+    "thermal label paper",
+    "custom printed boxes",
+    "packaging wholesale India",
+    "box manufacturer Karnal",
+    "ecommerce packaging supplies",
+    "shipping boxes bulk",
+    "Boxzz packaging",
+    "corrugated box manufacturer Haryana",
   ],
+  authors: [{ name: siteName }],
+  creator: siteName,
+  publisher: siteName,
   openGraph: {
-    title: "Boxzz — Premium Packaging & Corrugated Box Manufacturer",
-    description:
-      "India's trusted manufacturer of corrugated boxes, packaging tapes, bubble wrap, and custom packaging solutions.",
-    type: "website",
+    title: defaultTitle,
+    description: defaultDescription,
+    url: siteUrl,
+    siteName: siteName,
+    images: [
+      {
+        url: ogImage,
+        width: 1200,
+        height: 334,
+        alt: "Boxzz - Premium Packaging Manufacturer",
+      },
+    ],
     locale: "en_IN",
-    siteName: "Boxzz",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: defaultTitle,
+    description: defaultDescription,
+    images: [ogImage],
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    google: "your-google-site-verification", // Replace with actual code
+  },
+  alternates: {
+    canonical: siteUrl,
+  },
+  icons: {
+    icon: "/favicon.ico",
   },
 };
 
@@ -47,11 +98,57 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Boxzz",
+    url: siteUrl,
+    logo: `${siteUrl}${ogImage}`,
+    description: defaultDescription,
+    contactPoint: {
+      "@type": "ContactPoint",
+      telephone: "+91-9996896303",
+      contactType: "sales",
+      availableLanguage: ["English", "Hindi"],
+    },
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: "New Bahadur Channa Colony, Hansi Road",
+      addressLocality: "Karnal",
+      addressRegion: "Haryana",
+      postalCode: "132001",
+      addressCountry: "IN",
+    },
+    sameAs: [
+      "https://wa.me/919996896303",
+    ],
+    foundingDate: "2020",
+    numberOfEmployees: { "@type": "QuantitativeValue", minValue: "10", maxValue: "50" },
+    areaServed: "IN",
+    makesOffer: [
+      { "@type": "Offer", itemOffered: { "@type": "Product", name: "Corrugated Boxes" } },
+      { "@type": "Offer", itemOffered: { "@type": "Product", name: "Packaging Tapes" } },
+      { "@type": "Offer", itemOffered: { "@type": "Product", name: "Bubble Wrap" } },
+      { "@type": "Offer", itemOffered: { "@type": "Product", name: "Poly Bags" } },
+      { "@type": "Offer", itemOffered: { "@type": "Product", name: "Thermal Labels" } },
+      { "@type": "Offer", itemOffered: { "@type": "Product", name: "Custom Packaging" } },
+    ],
+  };
+
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        {/* Preconnect to vital origins */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+      </head>
       <body className="min-h-full flex flex-col bg-white">{children}</body>
     </html>
   );
