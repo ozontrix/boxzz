@@ -20,6 +20,7 @@ import { cn, formatPrice } from "@/lib/utils";
 import { INDIAN_STATES, PAYMENT_METHODS } from "@/lib/constants";
 import type { Address, Order } from "@/types";
 import { useApp } from "@/store";
+import { createOrder } from "@/lib/api";
 
 interface FormData {
   fullName: string;
@@ -97,11 +98,7 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     setIsPlacingOrder(true);
-    await new Promise((resolve) => setTimeout(resolve, 2500));
 
-    const newOrderId = `BXZ-${Date.now().toString().slice(-8)}-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`;
-
-    // Create address from form
     const shippingAddress: Address = {
       id: `addr-${Date.now()}`,
       label: "Home",
@@ -116,30 +113,37 @@ export default function CheckoutPage() {
       isDefault: false,
     };
 
-    // Build order object
-    const order: Order = {
-      id: newOrderId,
-      items: items.map(item => ({
-        productId: item.productId,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        image: item.image,
-        variant: item.variant,
-      })),
-      status: "confirmed",
-      total: total,
-      shippingAddress,
-      paymentMethod: "Cash on Delivery",
-      createdAt: new Date().toISOString(),
-      estimatedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      trackingId: `BXZ-TRK-${Date.now().toString().slice(-6)}`,
-    };
+    const userId = state.auth.user?.id || "guest";
 
-    addOrder(order);
-    setOrderId(newOrderId);
-    setOrderPlaced(true);
-    clearCart();
+    const result = await createOrder(
+      {
+        items: items.map((item) => ({
+          productId: item.productId,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          image: item.image,
+          variant: item.variant,
+        })),
+        total,
+        subtotal,
+        shipping,
+        gst,
+        shippingAddress,
+        paymentMethod: selectedPayment === "cod" ? "Cash on Delivery" : selectedPayment,
+        notes: formData.notes || undefined,
+      },
+      userId
+    );
+
+    if (result.order) {
+      addOrder(result.order);
+      setOrderId(result.order.id);
+      setOrderPlaced(true);
+      clearCart();
+    } else {
+      showToast("error", "Order Failed", result.error || "Something went wrong. Please try again.");
+    }
     setIsPlacingOrder(false);
   };
 
@@ -666,7 +670,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-zinc-500">
                   <Truck className="w-4 h-4 text-primary" />
-                  Free shipping above ₹2,499
+                  Free shipping above ₹2499
                 </div>
               </div>
             </div>

@@ -1,19 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Truck,
   ShieldCheck,
   RotateCcw,
-  HeadphonesIcon,
+  Award,
   ChevronRight,
   ArrowRight,
   Sparkles,
   TrendingUp,
-  Star,
-  Award,
 } from "lucide-react";
 import { HeroBanner, MarqueeStrip } from "@/components/ui";
 import { ProductCard } from "@/components/ui/ProductCard";
@@ -23,20 +21,37 @@ import {
   getFeaturedProducts,
   getBestSellerProducts,
   getNewProducts,
-  getFeaturedCategories,
-} from "@/data";
-import { WHY_BOXZZ } from "@/lib/constants";
-
-const fadeInUp = {
-  initial: { opacity: 0, y: 30 },
-  animate: { opacity: 1, y: 0 },
-};
+  getBanners,
+} from "@/lib/api/db";
+import { getFeaturedCategories } from "@/data";
+import type { Product, FeaturedCategory } from "@/types";
 
 export default function HomePage() {
-  const featuredProducts = useMemo(() => getFeaturedProducts(), []);
-  const bestSellerProducts = useMemo(() => getBestSellerProducts(), []);
-  const newProducts = useMemo(() => getNewProducts(), []);
-  const featuredCategories = useMemo(() => getFeaturedCategories(), []);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [bestSellerProducts, setBestSellerProducts] = useState<Product[]>([]);
+  const [newProducts, setNewProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const featuredCategories = getFeaturedCategories();
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [featured, bestSellers, newArrivals] = await Promise.all([
+          getFeaturedProducts(),
+          getBestSellerProducts(),
+          getNewProducts(),
+        ]);
+        setFeaturedProducts(featured);
+        setBestSellerProducts(bestSellers);
+        setNewProducts(newArrivals);
+      } catch (e) {
+        console.error("Failed to load homepage data:", e);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -50,11 +65,9 @@ export default function HomePage() {
 
       {/* ─── Categories Section ─── */}
       <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-14">
-        {/* Background decorative elements */}
         <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-bl from-orange-100/60 to-transparent rounded-full blur-3xl -z-10" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-amber-100/40 to-transparent rounded-full blur-3xl -z-10" />
 
-        {/* Section Header */}
         <div className="flex items-end justify-between mb-6 sm:mb-8">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-100 rounded-full text-xs font-semibold text-orange-600 mb-3">
@@ -77,14 +90,12 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {/* Featured Category Cards - 4 umbrella categories */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           {featuredCategories.map((cat, idx) => (
             <CategoryCard key={cat.id} category={cat} index={idx} href={`/category/${cat.subcategories[0]}`} />
           ))}
         </div>
 
-        {/* Subcategory quick links */}
         <div className="mt-5 sm:mt-6 flex flex-wrap items-center justify-center gap-2">
           {featuredCategories.map((group) => (
             <div key={group.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-full">
@@ -108,15 +119,21 @@ export default function HomePage() {
       <section className="bg-gradient-to-b from-zinc-50/50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
           <SectionHeader
-          title="Featured Products"
-          subtitle="Most popular packaging products this month"
-          href="/category/3-ply-boxes"
+            title="Featured Products"
+            subtitle="Most popular packaging products this month"
+            href="/category/3-ply-boxes"
           />
-          <div className="mt-4 sm:mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
-            {featuredProducts.slice(0, 10).map((product, idx) => (
-              <ProductCard key={product.id} product={product} index={idx} />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="mt-4 sm:mt-6 flex justify-center py-12">
+              <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="mt-4 sm:mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
+              {featuredProducts.slice(0, 10).map((product, idx) => (
+                <ProductCard key={product.id} product={product} index={idx} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -132,11 +149,17 @@ export default function HomePage() {
           subtitle="Trusted by businesses across India"
           href="/category/3-ply-flap-boxes"
         />
-        <div className="mt-4 sm:mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
-          {bestSellerProducts.slice(0, 10).map((product, idx) => (
-            <ProductCard key={product.id} product={product} index={idx} />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="mt-4 sm:mt-6 flex justify-center py-12">
+            <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="mt-4 sm:mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
+            {bestSellerProducts.slice(0, 10).map((product, idx) => (
+              <ProductCard key={product.id} product={product} index={idx} />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* ─── New Arrivals ─── */}
@@ -224,7 +247,6 @@ export default function HomePage() {
       {/* ─── CTA Section ─── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 sm:pb-12 lg:pb-16">
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary-dark to-primary">
-          {/* Background Pattern */}
           <div className="absolute inset-0 opacity-10">
             <div
               className="absolute inset-0"
@@ -241,12 +263,18 @@ export default function HomePage() {
               Get a free quote for custom-sized boxes, branded packaging, or bulk orders. Our team will get back to you within 24 hours.
             </p>
             <div className="mt-5 sm:mt-7 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-              <button className="px-6 sm:px-8 py-2.5 sm:py-3 bg-white text-primary font-semibold rounded-xl hover:bg-orange-50 transition-colors shadow-lg shadow-black/10 text-sm sm:text-base">
+              <Link
+                href="/custom-packaging"
+                className="px-6 sm:px-8 py-2.5 sm:py-3 bg-white text-primary font-semibold rounded-xl hover:bg-orange-50 transition-colors shadow-lg shadow-black/10 text-sm sm:text-base"
+              >
                 Get a Free Quote
-              </button>
-              <button className="px-6 sm:px-8 py-2.5 sm:py-3 bg-white/10 text-white font-medium rounded-xl hover:bg-white/20 transition-colors border border-white/20 text-sm sm:text-base">
+              </Link>
+              <a
+                href="tel:+919996896303"
+                className="px-6 sm:px-8 py-2.5 sm:py-3 bg-white/10 text-white font-medium rounded-xl hover:bg-white/20 transition-colors border border-white/20 text-sm sm:text-base"
+              >
                 Call Us Now
-              </button>
+              </a>
             </div>
           </div>
         </div>

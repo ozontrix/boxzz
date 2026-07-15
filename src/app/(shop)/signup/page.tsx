@@ -10,52 +10,43 @@ import { cn } from "@/lib/utils";
 import { useApp } from "@/store";
 
 interface FormErrors {
-  firstName?: string;
-  lastName?: string;
+  name?: string;
   email?: string;
-  phone?: string;
   password?: string;
-  terms?: string;
+  confirmPassword?: string;
 }
 
 export default function SignupPage() {
   const router = useRouter();
-  const { login, showToast } = useApp();
+  const { signUp } = useApp();
   const [showPassword, setShowPassword] = useState(false);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
+  const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   const validate = useCallback((): FormErrors => {
     const errs: FormErrors = {};
-    if (!firstName.trim()) errs.firstName = "First name is required";
-    if (!lastName.trim()) errs.lastName = "Last name is required";
+    if (!name.trim()) errs.name = "Full name is required";
     if (!email.trim()) {
       errs.email = "Email address is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errs.email = "Please enter a valid email address";
     }
-    if (!phone.trim()) {
-      errs.phone = "Phone number is required";
-    } else if (!/^\+?[\d\s-]{10,}$/.test(phone.replace(/\s/g, ""))) {
-      errs.phone = "Please enter a valid phone number";
-    }
     if (!password) {
       errs.password = "Password is required";
-    } else if (password.length < 8) {
-      errs.password = "Password must be at least 8 characters";
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      errs.password = "Password must include uppercase, lowercase & number";
+    } else if (password.length < 6) {
+      errs.password = "Password must be at least 6 characters";
     }
-    if (!acceptTerms) errs.terms = "You must accept the terms of service";
+    if (password !== confirmPassword) {
+      errs.confirmPassword = "Passwords do not match";
+    }
     return errs;
-  }, [firstName, lastName, email, phone, password, acceptTerms]);
+  }, [name, email, password, confirmPassword]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,27 +56,19 @@ export default function SignupPage() {
     if (Object.keys(validationErrors).length > 0) return;
 
     setIsSubmitting(true);
+    setApiError(null);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const result = await signUp(email, password, name.trim());
 
-    const fullName = `${firstName} ${lastName}`;
-
-    // Simulate successful signup + auto login
-    login({
-      id: "user-" + Date.now(),
-      name: fullName,
-      email: email,
-      phone: phone,
-      addresses: [],
-    });
-
-    setIsSuccess(true);
-    showToast("success", "Account created!", `Welcome to Boxzz, ${firstName}!`);
-
-    setTimeout(() => {
-      router.push("/");
-    }, 1000);
+    if (result.success) {
+      setIsSuccess(true);
+      setTimeout(() => {
+        router.push("/");
+      }, 1000);
+    } else {
+      setApiError(result.error || "Sign up failed. Please try again.");
+      setIsSubmitting(false);
+    }
   };
 
   const clearError = (field: keyof FormErrors) => {
@@ -151,74 +134,49 @@ export default function SignupPage() {
               </p>
 
               <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
-                {/* Name Fields */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-600 mb-1.5">
-                      First Name
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={firstName}
-                        onChange={(e) => {
-                          setFirstName(e.target.value);
-                          clearError("firstName");
-                        }}
-                        className={cn(
-                          "w-full h-11 px-4 text-sm border rounded-xl focus:outline-none focus:ring-2 transition-all",
-                          errors.firstName
-                            ? "border-error focus:ring-error/30 focus:border-error"
-                            : "border-zinc-200 focus:ring-primary/30 focus:border-primary"
-                        )}
-                        placeholder="First"
-                      />
-                    </div>
-                    <AnimatePresence>
-                      {errors.firstName && (
-                        <motion.p
-                          initial={{ opacity: 0, y: -4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0 }}
-                          className="text-xs text-error mt-1"
-                        >
-                          {errors.firstName}
-                        </motion.p>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-600 mb-1.5">
-                      Last Name
-                    </label>
-                    <input
-                      type="text"
-                      value={lastName}
-                      onChange={(e) => {
-                        setLastName(e.target.value);
-                        clearError("lastName");
-                      }}
-                      className={cn(
-                        "w-full h-11 px-4 text-sm border rounded-xl focus:outline-none focus:ring-2 transition-all",
-                        errors.lastName
-                          ? "border-error focus:ring-error/30 focus:border-error"
-                          : "border-zinc-200 focus:ring-primary/30 focus:border-primary"
-                      )}
-                      placeholder="Last"
-                    />
-                    <AnimatePresence>
-                      {errors.lastName && (
-                        <motion.p
-                          initial={{ opacity: 0, y: -4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0 }}
-                          className="text-xs text-error mt-1"
-                        >
-                          {errors.lastName}
-                        </motion.p>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                {apiError && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="p-3 bg-error/5 border border-error/20 rounded-xl flex items-start gap-2"
+                  >
+                    <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" />
+                    <p className="text-xs text-error font-medium">{apiError}</p>
+                  </motion.div>
+                )}
+
+                {/* Full Name */}
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 mb-1.5">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      clearError("name");
+                    }}
+                    className={cn(
+                      "w-full h-11 px-4 text-sm border rounded-xl focus:outline-none focus:ring-2 transition-all",
+                      errors.name
+                        ? "border-error focus:ring-error/30 focus:border-error"
+                        : "border-zinc-200 focus:ring-primary/30 focus:border-primary"
+                    )}
+                    placeholder="Your full name"
+                  />
+                  <AnimatePresence>
+                    {errors.name && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-xs text-error mt-1"
+                      >
+                        {errors.name}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Email */}
@@ -269,40 +227,6 @@ export default function SignupPage() {
                   </AnimatePresence>
                 </div>
 
-                {/* Phone */}
-                <div>
-                  <label className="block text-xs font-medium text-zinc-600 mb-1.5">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => {
-                      setPhone(e.target.value);
-                      clearError("phone");
-                    }}
-                    className={cn(
-                      "w-full h-11 px-4 text-sm border rounded-xl focus:outline-none focus:ring-2 transition-all",
-                      errors.phone
-                        ? "border-error focus:ring-error/30 focus:border-error"
-                        : "border-zinc-200 focus:ring-primary/30 focus:border-primary"
-                    )}
-                    placeholder="+91 98765 43210"
-                  />
-                  <AnimatePresence>
-                    {errors.phone && (
-                      <motion.p
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0 }}
-                        className="text-xs text-error mt-1"
-                      >
-                        {errors.phone}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </div>
-
                 {/* Password */}
                 <div>
                   <label className="block text-xs font-medium text-zinc-600 mb-1.5">
@@ -322,7 +246,7 @@ export default function SignupPage() {
                           ? "border-error focus:ring-error/30 focus:border-error"
                           : "border-zinc-200 focus:ring-primary/30 focus:border-primary"
                       )}
-                      placeholder="Create a strong password"
+                      placeholder="Create a password"
                     />
                     <button
                       type="button"
@@ -377,48 +301,39 @@ export default function SignupPage() {
                   </AnimatePresence>
                 </div>
 
-                {/* Terms */}
-                <div className="flex items-start gap-2">
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 mb-1.5">
+                    Confirm Password
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={acceptTerms}
+                    type="password"
+                    value={confirmPassword}
                     onChange={(e) => {
-                      setAcceptTerms(e.target.checked);
-                      clearError("terms");
+                      setConfirmPassword(e.target.value);
+                      clearError("confirmPassword");
                     }}
-                    className="w-4 h-4 rounded border-zinc-300 text-primary focus:ring-primary/30 mt-0.5"
+                    className={cn(
+                      "w-full h-11 px-4 text-sm border rounded-xl focus:outline-none focus:ring-2 transition-all",
+                      errors.confirmPassword
+                        ? "border-error focus:ring-error/30 focus:border-error"
+                        : "border-zinc-200 focus:ring-primary/30 focus:border-primary"
+                    )}
+                    placeholder="Re-enter your password"
                   />
-                  <span className="text-xs text-zinc-500">
-                    I agree to the{" "}
-                    <button
-                      type="button"
-                      onClick={() => showToast("info", "Terms of Service", "Terms will be available soon.")}
-                      className="font-medium text-primary hover:text-primary-dark"
-                    >
-                      Terms of Service
-                    </button>{" "}
-                    and{" "}
-                    <button
-                      type="button"
-                      onClick={() => showToast("info", "Privacy Policy", "Privacy policy will be available soon.")}
-                      className="font-medium text-primary hover:text-primary-dark"
-                    >
-                      Privacy Policy
-                    </button>
-                  </span>
+                  <AnimatePresence>
+                    {errors.confirmPassword && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-xs text-error mt-1"
+                      >
+                        {errors.confirmPassword}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
                 </div>
-                <AnimatePresence>
-                  {errors.terms && (
-                    <motion.p
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="text-xs text-error mt-0"
-                    >
-                      {errors.terms}
-                    </motion.p>
-                  )}
-                </AnimatePresence>
 
                 <motion.button
                   type="submit"
@@ -444,7 +359,6 @@ export default function SignupPage() {
                 </motion.button>
               </form>
 
-              {/* Divider */}
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-zinc-200" />
@@ -454,11 +368,9 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Social Buttons */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => showToast("info", "Google Sign Up", "Google sign-up is coming soon!")}
                   className="h-11 flex items-center justify-center gap-2 text-sm font-medium text-zinc-700 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -471,7 +383,6 @@ export default function SignupPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => showToast("info", "Facebook Sign Up", "Facebook sign-up is coming soon!")}
                   className="h-11 flex items-center justify-center gap-2 text-sm font-medium text-zinc-700 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors"
                 >
                   <svg className="w-5 h-5 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24">
@@ -491,7 +402,6 @@ export default function SignupPage() {
                 </Link>
               </p>
 
-              {/* Business Account */}
               <div className="mt-6 p-3 bg-zinc-50 rounded-xl border border-zinc-100">
                 <p className="text-xs text-zinc-600 text-center">
                   <span className="font-semibold text-zinc-800">Business account?</span>{" "}

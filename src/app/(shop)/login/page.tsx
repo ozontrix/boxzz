@@ -16,12 +16,13 @@ interface FormErrors {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, showToast } = useApp();
+  const { login } = useApp();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -48,24 +49,19 @@ export default function LoginPage() {
     if (Object.keys(validationErrors).length > 0) return;
 
     setIsSubmitting(true);
+    setApiError(null);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    const result = await login(email, password);
 
-    // Simulate successful login
-    login({
-      id: "user-1",
-      name: email.split("@")[0],
-      email: email,
-      addresses: [],
-    });
-
-    setIsSuccess(true);
-    showToast("success", "Welcome back!", `Signed in as ${email.split("@")[0]}`);
-
-    setTimeout(() => {
-      router.push("/");
-    }, 800);
+    if (result.success) {
+      setIsSuccess(true);
+      setTimeout(() => {
+        router.push("/");
+      }, 800);
+    } else {
+      setApiError(result.error || "Invalid email or password. Please try again.");
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -125,6 +121,16 @@ export default function LoginPage() {
               <p className="text-sm text-zinc-500 mt-1">Sign in to access your orders, saved addresses & more</p>
 
               <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
+                {apiError && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="p-3 bg-error/5 border border-error/20 rounded-xl flex items-start gap-2"
+                  >
+                    <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" />
+                    <p className="text-xs text-error font-medium">{apiError}</p>
+                  </motion.div>
+                )}
                 <div>
                   <label className="block text-xs font-medium text-zinc-600 mb-1.5">
                     Email Address
@@ -262,7 +268,6 @@ export default function LoginPage() {
                 </motion.button>
               </form>
 
-              {/* Divider */}
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-zinc-200" />
@@ -272,11 +277,9 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Social Buttons */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => showToast("info", "Google Sign In", "Google sign-in is coming soon!")}
                   className="h-11 flex items-center justify-center gap-2 text-sm font-medium text-zinc-700 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -289,7 +292,6 @@ export default function LoginPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => showToast("info", "Facebook Sign In", "Facebook sign-in is coming soon!")}
                   className="h-11 flex items-center justify-center gap-2 text-sm font-medium text-zinc-700 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors"
                 >
                   <svg className="w-5 h-5 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24">

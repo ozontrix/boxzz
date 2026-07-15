@@ -9,6 +9,8 @@ import React, {
   ReactNode,
 } from "react";
 import type { CartItem, Product, Address, User, Order, OrderStatus } from "@/types";
+import { getCurrentSession, signIn as apiSignIn, signUp as apiSignUp, signOut as apiSignOut } from "@/lib/api";
+import { getShippingConfig, type ShippingConfig } from "@/lib/api/db";
 
 // ─── State Types ──────────────────────────────────────────────────
 
@@ -27,6 +29,7 @@ interface WishlistState {
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 interface Toast {
@@ -55,6 +58,7 @@ type Action =
   | { type: "WISHLIST_REMOVE_ITEM"; payload: { productId: string } }
   | { type: "AUTH_LOGIN"; payload: User }
   | { type: "AUTH_LOGOUT" }
+  | { type: "AUTH_SET_LOADING"; payload: boolean }
   | { type: "ADD_TOAST"; payload: Toast }
   | { type: "REMOVE_TOAST"; payload: { id: string } }
   | { type: "SET_CHECKOUT_ADDRESS"; payload: Address | null }
@@ -66,22 +70,96 @@ type Action =
   | { type: "SET_DEFAULT_ADDRESS"; payload: { addressId: string } }
   | { type: "HYDRATE"; payload: Partial<AppState> };
 
-const FREE_SHIPPING_THRESHOLD = 2499;
-const GST_RATE = 0.12;
 const STORAGE_KEY = "boxzz_store";
+const CART_KEY = "boxzz_cart";
+const SHIPPING_CONFIG_KEY = "boxzz_shipping_config";
 
-function calculateCart(items: CartItem[]): Omit<CartState, "items"> {
+let cachedShippingConfig: ShippingConfig | null = null;
+
+export async function refreshShippingConfig(): Promise<ShippingConfig> {
+  try {
+    const config = await getShippingConfig();
+    cachedShippingConfig = config;
+    if (typeof window !== "undefined") {
+      localStorage.setItem(SHIPPING_CONFIG_KEY, JSON.stringify(config));
+    }
+    return config;
+  } catch (e) {
+    return getFallbackConfig();
+  }
+}
+
+function getFallbackConfig(): ShippingConfig {
+  return {
+    standardCharge: 149,
+    freeThreshold: 2499,
+    gstRate: 0.12,
+    methods: [],
+  };
+}
+
+function getCachedConfig(): ShippingConfig {
+  if (cachedShippingConfig) return cachedShippingConfig;
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem(SHIPPING_CONFIG_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        cachedShippingConfig = parsed;
+        return parsed;
+      }
+    } catch {}
+  }
+  return getFallbackConfig();
+}
+
+function calculateCart(items: CartItem[], config?: ShippingConfig): Omit<CartState, "items"> {
+  const cfg = config || getCachedConfig();
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 149;
-  const gst = Math.round(subtotal * GST_RATE);
+  const shipping = subtotal >= cfg.freeThreshold ? 0 : cfg.standardCharge;
+  const gst = Math.round(subtotal * (cfg.gstRate || 0.12));
   const total = subtotal + shipping + gst;
   return { subtotal, shipping, gst, total };
 }
 
+// Check if window is defined (avoids SSR issues)
+const isBrowser = typeof window !== "undefined";
+
+// Load cart from localStorage synchronously on module load
+function loadInitialCart(): CartState {
+  if (!isBrowser) return { items: [], subtotal: 0, shipping: 0, gst: 0, total: 0 };
+  try {
+    const stored = localStorage.getItem(CART_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed && Array.isArray(parsed.items)) {
+        const cartCalc = calculateCart(parsed.items);
+        return { items: parsed.items, ...cartCalc };
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to load cart from localStorage:", e);
+  }
+  return { items: [], subtotal: 0, shipping: 0, gst: 0, total: 0 };
+}
+
+// Load wishlist from localStorage synchronously on module load
+function loadInitialWishlist(): WishlistState {
+  if (!isBrowser) return { items: [] };
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.wishlist) return parsed.wishlist;
+    }
+  } catch {}
+  return { items: [] };
+}
+
 const initialState: AppState = {
-  cart: { items: [], subtotal: 0, shipping: 0, gst: 0, total: 0 },
-  wishlist: { items: [] },
-  auth: { user: null, isAuthenticated: false },
+  cart: loadInitialCart(),
+  wishlist: loadInitialWishlist(),
+  auth: { user: null, isAuthenticated: false, isLoading: true },
   toasts: [],
   checkoutAddress: null,
   orders: [],
@@ -104,21 +182,13 @@ function appReducer(state: AppState, action: Action): AppState {
             : item
         );
       } else {
-        const categoryIconMap: Record<string, string> = {
-          "3-ply-boxes": "📦", "5-ply-boxes": "📦", "7-ply-boxes": "📦",
-          "3-ply-flap-boxes": "📋", "3-ply-printed-flap-boxes": "🎨",
-          "3-ply-white-boxes": "⬜", "3-ply-flap-white-boxes": "🤍",
-          "packaging-tapes": "🔵", "paper-bubble-wrap": "📜",
-          "poly-bags": "🛍️", "thermal-labels": "🏷️",
-          "corrugated-roll": "🔄", "custom-packaging": "✨",
-        };
-        const emoji = categoryIconMap[product.category] || "📦";
+        const imageUrl = product.images?.[0] || "📦";
         const newItem: CartItem = {
           productId: product.id,
           name: product.name,
           price: product.price,
           quantity: Math.max(quantity, product.moq),
-          image: emoji,
+          image: imageUrl,
           variant: variant,
         };
         newItems = [...state.cart.items, newItem];
@@ -177,13 +247,19 @@ function appReducer(state: AppState, action: Action): AppState {
     case "AUTH_LOGIN":
       return {
         ...state,
-        auth: { user: action.payload, isAuthenticated: true },
+        auth: { user: action.payload, isAuthenticated: true, isLoading: false },
       };
 
     case "AUTH_LOGOUT":
       return {
         ...state,
-        auth: { user: null, isAuthenticated: false },
+        auth: { user: null, isAuthenticated: false, isLoading: false },
+      };
+
+    case "AUTH_SET_LOADING":
+      return {
+        ...state,
+        auth: { ...state.auth, isLoading: action.payload },
       };
 
     case "ADD_TOAST":
@@ -276,8 +352,9 @@ interface AppContextType {
   isInWishlist: (productId: string) => boolean;
   isInCart: (productId: string) => boolean;
   getCartQuantity: (productId: string) => number;
-  login: (user: User) => void;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signUp: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
   showToast: (type: Toast["type"], title: string, message?: string) => void;
   removeToast: (id: string) => void;
   setCheckoutAddress: (address: Address | null) => void;
@@ -314,40 +391,41 @@ function generateToast(
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Hydrate from localStorage on mount
+  // Sync cart to localStorage on every cart change
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.cart) {
-          const cartCalc = calculateCart(parsed.cart.items || []);
-          dispatch({
-            type: "HYDRATE",
-            payload: {
-              cart: { items: parsed.cart.items || [], ...cartCalc },
-              wishlist: parsed.wishlist || { items: [] },
-              auth: parsed.auth || { user: null, isAuthenticated: false },
-              orders: parsed.orders || [],
-              savedAddresses: parsed.savedAddresses || [],
-            },
-          });
-        }
-      }
+      localStorage.setItem(CART_KEY, JSON.stringify(state.cart));
     } catch (e) {
-      console.warn("Failed to hydrate store from localStorage:", e);
+      console.warn("Failed to persist cart:", e);
     }
-  }, []);
+  }, [state.cart]);
 
-  // Persist to localStorage on state changes (skip toasts)
+  // Sync wishlist/orders/addresses to localStorage
   useEffect(() => {
     try {
-      const { toasts, checkoutAddress, ...persistable } = state;
+      const { toasts, checkoutAddress, auth, cart, ...persistable } = state;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(persistable));
     } catch (e) {
-      console.warn("Failed to persist store to localStorage:", e);
+      console.warn("Failed to persist store:", e);
     }
-  }, [state]);
+  }, [state.wishlist, state.orders, state.savedAddresses]);
+
+  // Check auth session on mount (async, doesn't block cart)
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const { user } = await getCurrentSession();
+        if (user) {
+          dispatch({ type: "AUTH_LOGIN", payload: user });
+        } else {
+          dispatch({ type: "AUTH_SET_LOADING", payload: false });
+        }
+      } catch {
+        dispatch({ type: "AUTH_SET_LOADING", payload: false });
+      }
+    }
+    checkAuth();
+  }, []);
 
   const addToCart = useCallback(
     (product: Product, quantity = 1, variant?: string) => {
@@ -428,15 +506,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [state.cart.items]
   );
 
-  const login = useCallback((user: User) => {
-    dispatch({ type: "AUTH_LOGIN", payload: user });
-    dispatch({
-      type: "ADD_TOAST",
-      payload: generateToast("success", "Welcome back!", `Signed in as ${user.name}`),
-    });
+  const login = useCallback(async (email: string, password: string) => {
+    const result = await apiSignIn(email, password);
+    if (result.user) {
+      dispatch({ type: "AUTH_LOGIN", payload: result.user });
+      dispatch({
+        type: "ADD_TOAST",
+        payload: generateToast("success", "Welcome back!", `Signed in as ${result.user.name}`),
+      });
+      return { success: true };
+    }
+    return { success: false, error: result.error || "Login failed" };
   }, []);
 
-  const logout = useCallback(() => {
+  const signUp = useCallback(async (email: string, password: string, name: string) => {
+    const result = await apiSignUp(email, password, name);
+    if (result.user) {
+      dispatch({ type: "AUTH_LOGIN", payload: result.user });
+      dispatch({
+        type: "ADD_TOAST",
+        payload: generateToast("success", "Account created!", `Welcome, ${result.user.name}!`),
+      });
+      return { success: true };
+    }
+    return { success: false, error: result.error || "Sign up failed" };
+  }, []);
+
+  const logout = useCallback(async () => {
+    await apiSignOut();
     dispatch({ type: "AUTH_LOGOUT" });
     dispatch({
       type: "ADD_TOAST",
@@ -523,6 +620,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isInCart,
     getCartQuantity,
     login,
+    signUp,
     logout,
     showToast,
     removeToast,

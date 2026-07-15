@@ -1,13 +1,19 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/store";
 
 export function CartIcon() {
   const { state } = useApp();
+  const [mounted, setMounted] = useState(false);
   const itemCount = state.cart.items.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Defer badge rendering until after hydration to prevent SSR mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <Link
@@ -16,18 +22,11 @@ export function CartIcon() {
       aria-label="Cart"
     >
       <ShoppingBag className="w-5 h-5" />
-      <AnimatePresence>
-        {itemCount > 0 && (
-          <motion.span
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            exit={{ scale: 0 }}
-            className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary text-[10px] font-bold text-white flex items-center justify-center"
-          >
-            {itemCount > 99 ? "99+" : itemCount}
-          </motion.span>
-        )}
-      </AnimatePresence>
+      {mounted && itemCount > 0 && (
+        <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary text-[10px] font-bold text-white flex items-center justify-center">
+          {itemCount > 99 ? "99+" : itemCount}
+        </span>
+      )}
     </Link>
   );
 }
