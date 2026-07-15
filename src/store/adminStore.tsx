@@ -101,7 +101,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
           payload: {
             id: session.user.id,
             email: session.user.email || "",
-            name: session.user.user_metadata?.name || "Admin",
+            name: "Akshay",
             role: "superadmin",
           },
         });
@@ -130,7 +130,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
             payload: {
               id: data.user.id,
               email: data.user.email || email,
-              name: data.user.user_metadata?.name || "Admin",
+              name: "Akshay",
               role: "superadmin",
             },
           });
