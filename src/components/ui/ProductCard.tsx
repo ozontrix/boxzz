@@ -17,6 +17,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const { addToCart, addToWishlist, removeFromWishlist, isInWishlist, isInCart, showToast } = useApp();
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const discount = product.originalPrice
     ? calculateDiscount(product.originalPrice, product.price)
@@ -24,6 +25,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
 
   const inWishlist = isInWishlist(product.id);
   const inCart = isInCart(product.id);
+  const hasSlider = (product.images?.length ?? 0) >= 2;
 
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -56,10 +58,14 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
       <Link href={`/product/${product.slug}`} className="block">
         <div className="relative aspect-[3/4] bg-zinc-50 rounded-2xl overflow-hidden border border-zinc-100 group-hover:border-primary/20 transition-colors">
           {/* Product Image */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            {product.images?.[0] ? (
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            onMouseEnter={() => hasSlider && setCurrentImageIndex(1)}
+            onMouseLeave={() => hasSlider && setCurrentImageIndex(0)}
+          >
+            {product.images?.[currentImageIndex] ? (
               <img
-                src={product.images[0]}
+                src={product.images[currentImageIndex]}
                 alt={product.name}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 loading="lazy"
@@ -74,6 +80,28 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                 {product.category === "thermal-labels" && "🏷️"}
                 {product.category === "corrugated-roll" && "🔄"}
                 {product.category === "custom-packaging" && "✨"}
+              </div>
+            )}
+
+            {/* Image Slider Dots */}
+            {hasSlider && (
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+                {product.images?.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setCurrentImageIndex(i);
+                    }}
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full transition-all",
+                      i === currentImageIndex
+                        ? "bg-white w-3"
+                        : "bg-white/60 hover:bg-white/80"
+                    )}
+                  />
+                ))}
               </div>
             )}
           </div>

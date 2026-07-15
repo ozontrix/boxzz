@@ -36,7 +36,7 @@ export default function ProductDetailPage({
   const product = getProductBySlug(slug);
   const relatedProducts = product ? getRelatedProducts(product.id) : [];
   const [selectedImage, setSelectedImage] = useState(0);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(product?.moq || 1);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"description" | "specs" | "features">("description");
   const [addedToCart, setAddedToCart] = useState(false);
@@ -308,7 +308,7 @@ export default function ProductDetailPage({
                 <div className="flex items-center gap-3">
                   <div className="flex items-center border border-zinc-200 rounded-xl overflow-hidden">
                     <button
-                      onClick={() => setQuantity(Math.max(product.moq, quantity - product.moq))}
+                      onClick={() => setQuantity(Math.max(product.moq, quantity - 1))}
                       className="w-10 h-10 flex items-center justify-center text-zinc-600 hover:bg-zinc-50 transition-colors"
                     >
                       <Minus className="w-4 h-4" />
@@ -324,7 +324,7 @@ export default function ProductDetailPage({
                       min={product.moq}
                     />
                     <button
-                      onClick={() => setQuantity(quantity + product.moq)}
+                      onClick={() => setQuantity(quantity + 1)}
                       className="w-10 h-10 flex items-center justify-center text-zinc-600 hover:bg-zinc-50 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
@@ -374,7 +374,7 @@ export default function ProductDetailPage({
                     <div className="flex items-center border border-zinc-200 rounded-lg overflow-hidden bg-white">
                       <motion.button
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => updateCartQuantity(product.id, Math.max(product.moq, cartQty - product.moq))}
+                        onClick={() => updateCartQuantity(product.id, Math.max(product.moq, cartQty - 1))}
                         className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:bg-zinc-50 transition-colors"
                       >
                         <Minus className="w-3.5 h-3.5" />
@@ -384,7 +384,7 @@ export default function ProductDetailPage({
                       </span>
                       <motion.button
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => updateCartQuantity(product.id, cartQty + product.moq)}
+                        onClick={() => updateCartQuantity(product.id, cartQty + 1)}
                         className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:bg-zinc-50 transition-colors"
                       >
                         <Plus className="w-3.5 h-3.5" />
