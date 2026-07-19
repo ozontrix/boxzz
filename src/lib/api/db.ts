@@ -115,8 +115,12 @@ function mapOrder(raw: any): Order {
     items,
     status: raw.status as OrderStatus,
     total: raw.total,
+    subtotal: raw.subtotal !== undefined ? raw.subtotal : (raw.total - (raw.gst || 0) - (raw.shipping || 0)),
+    shipping: raw.shipping !== undefined ? raw.shipping : 0,
+    gst: raw.gst !== undefined ? raw.gst : 0,
     shippingAddress: address,
     paymentMethod: raw.payment_method,
+    notes: raw.notes ?? undefined,
     createdAt: raw.created_at,
     estimatedDelivery: raw.estimated_delivery ?? undefined,
     trackingId: raw.tracking_id ?? undefined,
@@ -130,6 +134,8 @@ export async function getAllProducts(): Promise<Product[]> {
     const { data, error } = await supabase
       .from("products")
       .select("*")
+      .eq("in_stock", true)
+      .gt("stock_count", 0)
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map(mapProduct);
@@ -145,6 +151,8 @@ export async function getFeaturedProducts(): Promise<Product[]> {
       .from("products")
       .select("*")
       .eq("is_featured", true)
+      .eq("in_stock", true)
+      .gt("stock_count", 0)
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map(mapProduct);
@@ -160,6 +168,8 @@ export async function getBestSellerProducts(): Promise<Product[]> {
       .from("products")
       .select("*")
       .eq("is_best_seller", true)
+      .eq("in_stock", true)
+      .gt("stock_count", 0)
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map(mapProduct);
@@ -175,6 +185,8 @@ export async function getNewProducts(): Promise<Product[]> {
       .from("products")
       .select("*")
       .eq("is_new", true)
+      .eq("in_stock", true)
+      .gt("stock_count", 0)
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map(mapProduct);
@@ -395,6 +407,29 @@ export async function deleteAddress(addressId: string): Promise<boolean> {
     return true;
   } catch (e) {
     console.error("deleteAddress error:", e);
+    return false;
+  }
+}
+
+export async function setDefaultAddressInDb(addressId: string, userId: string): Promise<boolean> {
+  try {
+    // First, set all addresses for this user to is_default = false
+    const { error: resetError } = await supabase
+      .from("addresses")
+      .update({ is_default: false })
+      .eq("user_id", userId);
+    if (resetError) throw resetError;
+
+    // Then set the chosen one to default
+    const { error: setError } = await supabase
+      .from("addresses")
+      .update({ is_default: true })
+      .eq("id", addressId);
+    if (setError) throw setError;
+
+    return true;
+  } catch (e) {
+    console.error("setDefaultAddressInDb error:", e);
     return false;
   }
 }

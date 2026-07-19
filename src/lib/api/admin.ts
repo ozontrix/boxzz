@@ -70,6 +70,17 @@ export async function adminGetProducts(): Promise<Product[]> {
   return (data ?? []).map(mapProduct);
 }
 
+export async function adminGetActiveProducts(): Promise<Product[]> {
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .eq("in_stock", true)
+    .gt("stock_count", 0)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(mapProduct);
+}
+
 export async function adminCreateProduct(product: {
   id: string;
   name: string;
@@ -284,26 +295,20 @@ export async function adminDeleteBanner(id: string): Promise<void> {
 
 // ─── Users ───────────────────────────────────────────────────────
 export async function adminGetUsers() {
-  // Get users from auth.users via a custom function
-  // Since we can't directly query auth.users from anon client,
-  // we'll get users from orders and addresses
   const { data: orderUsers, error: orderError } = await supabase
     .from("orders")
     .select("user_id, shipping_address")
     .order("created_at", { ascending: false });
   if (orderError) throw orderError;
 
-  // Get unique user IDs
   const userIds = [...new Set((orderUsers ?? []).map((o: any) => o.user_id).filter(Boolean))];
 
-  // Get addresses for these users
   const { data: addresses, error: addrError } = await supabase
     .from("addresses")
     .select("*")
     .order("created_at", { ascending: false });
   if (addrError) throw addrError;
 
-  // Build user profiles from available data
   const userMap = new Map<string, any>();
   
   for (const order of orderUsers ?? []) {
@@ -328,7 +333,6 @@ export async function adminGetUsers() {
     }
   }
 
-  // Attach addresses
   for (const addr of addresses ?? []) {
     const user = userMap.get((addr as any).user_id);
     if (user) {
@@ -395,7 +399,7 @@ export async function adminGetContactInfo() {
 
 // ─── Site Settings ────────────────────────────────────────────────
 export async function adminGetSettings(): Promise<{ key: string; value: string; type: string; label: string; description: string; section: string }[]> {
-  const { data, error } = await supabase.from("site_settings").select("*").order("section", { ascending: true });
+  const { data, error } = await supabase.from("site_settings").select("*").order("section", { ascending: true }).order("key", { ascending: true });
   if (error) throw error;
   return data ?? [];
 }
@@ -563,8 +567,12 @@ function mapOrder(raw: any): Order {
     items,
     status: raw.status as OrderStatus,
     total: raw.total,
+    subtotal: raw.subtotal !== undefined ? raw.subtotal : (raw.total - (raw.gst || 0) - (raw.shipping || 0)),
+    shipping: raw.shipping !== undefined ? raw.shipping : 0,
+    gst: raw.gst !== undefined ? raw.gst : 0,
     shippingAddress: address,
     paymentMethod: raw.payment_method,
+    notes: raw.notes ?? undefined,
     createdAt: raw.created_at,
     estimatedDelivery: raw.estimated_delivery ?? undefined,
     trackingId: raw.tracking_id ?? undefined,

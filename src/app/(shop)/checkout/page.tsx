@@ -15,6 +15,10 @@ import {
   AlertCircle,
   ArrowRight,
   ShoppingBag,
+  Home,
+  Building2,
+  Star,
+  Plus,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { INDIAN_STATES, PAYMENT_METHODS } from "@/lib/constants";
@@ -44,32 +48,53 @@ interface FormErrors {
   pincode?: string;
 }
 
+const EMPTY_FORM: FormData = {
+  fullName: "",
+  phone: "",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  state: "",
+  pincode: "",
+  company: "",
+  notes: "",
+};
+
 export default function CheckoutPage() {
   const router = useRouter();
-  const { state, clearCart, showToast, addOrder } = useApp();
+  const { state, clearCart, showToast, addOrder, addAddress, refreshUserData } = useApp();
   const [step, setStep] = useState<"address" | "payment" | "confirm">("address");
   const [selectedPayment, setSelectedPayment] = useState("cod");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState<FormData>({
-    fullName: "",
-    phone: "",
-    addressLine1: "",
-    addressLine2: "",
-    city: "",
-    state: "",
-    pincode: "",
-    company: "",
-    notes: "",
-  });
+  const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
 
   const { items, subtotal, shipping, gst, total } = state.cart;
+  const { savedAddresses, auth } = state;
+  const isAuthenticated = auth.isAuthenticated;
 
   const clearError = (field: string) => {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
+
+  const selectSavedAddress = (address: Address) => {
+    setFormData({
+      fullName: address.fullName,
+      phone: address.phone,
+      addressLine1: address.line1,
+      addressLine2: address.line2 || "",
+      city: address.city,
+      state: address.state,
+      pincode: address.pincode,
+      company: address.company || "",
+      notes: formData.notes,
+    });
+    setSelectedSavedAddressId(address.id);
+    setErrors({});
   };
 
   const validateAddress = useCallback((): FormErrors => {
@@ -86,11 +111,28 @@ export default function CheckoutPage() {
     return errs;
   }, [formData]);
 
-  const handleAddressSubmit = (e: React.FormEvent) => {
+  const handleAddressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationErrors = validateAddress();
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length === 0) {
+      // If user is authenticated and no saved address was selected, save this address
+      if (isAuthenticated && !selectedSavedAddressId) {
+        const addressData = {
+          label: "Home",
+          fullName: formData.fullName,
+          phone: formData.phone,
+          company: formData.company || undefined,
+          line1: formData.addressLine1,
+          line2: formData.addressLine2 || undefined,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+          isDefault: savedAddresses.length === 0,
+        };
+        // Save address to DB in background
+        addAddress(addressData).then(() => refreshUserData());
+      }
       setStep("payment");
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -319,18 +361,52 @@ export default function CheckoutPage() {
                 onSubmit={handleAddressSubmit}
                 className="space-y-4"
               >
-                {/* Shipping Address */}
+                {/* Saved Addresses */}
+                {isAuthenticated && savedAddresses.length > 0 && (
+                  <div className="bg-white rounded-xl border border-zinc-100 p-4 sm:p-5">
+                    <h2 className="text-sm font-semibold text-zinc-800 flex items-center gap-2 mb-3">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      Saved Addresses
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {savedAddresses.map((addr) => (
+                        <button
+                          key={addr.id}
+                          type="button"
+                          onClick={() => selectSavedAddress(addr)}
+                          className={cn(
+                            "text-left p-3 rounded-xl border transition-all",
+                            selectedSavedAddressId === addr.id
+                              ? "border-primary bg-orange-50"
+                              : "border-zinc-200 hover:border-zinc-300"
+                          )}
+                        >
+                          <div className="flex items-center gap-1.5 mb-1">
+                            {addr.label === "Home" ? <Home className="w-3 h-3 text-zinc-500" /> : <Building2 className="w-3 h-3 text-zinc-500" />}
+                            <span className="text-[11px] font-medium text-zinc-600">{addr.label}</span>
+                            {addr.isDefault && <Star className="w-3 h-3 text-primary fill-primary" />}
+                          </div>
+                          <p className="text-xs font-medium text-zinc-800 truncate">{addr.fullName}</p>
+                          <p className="text-[10px] text-zinc-500 truncate">{addr.line1}</p>
+                          <p className="text-[10px] text-zinc-500 truncate">{addr.city}, {addr.state}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Shipping Address Form */}
                 <div className="bg-white rounded-xl border border-zinc-100 p-4 sm:p-5">
                   <h2 className="text-base font-semibold text-zinc-800 flex items-center gap-2 mb-4">
                     <MapPin className="w-4 h-4 text-primary" />
-                    Shipping Address
+                    {selectedSavedAddressId ? "Edit Shipping Address" : (isAuthenticated ? "New Shipping Address" : "Shipping Address")}
                   </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="sm:col-span-2">
                       <InputField
                         label="Full Name"
                         value={formData.fullName}
-                        onChange={(v) => { setFormData(p => ({ ...p, fullName: v })); clearError("fullName"); }}
+                        onChange={(v) => { setFormData(p => ({ ...p, fullName: v })); clearError("fullName"); setSelectedSavedAddressId(null); }}
                         error={errors.fullName}
                         placeholder="Enter your full name"
                       />
@@ -339,7 +415,7 @@ export default function CheckoutPage() {
                       <InputField
                         label="Phone Number"
                         value={formData.phone}
-                        onChange={(v) => { setFormData(p => ({ ...p, phone: v })); clearError("phone"); }}
+                        onChange={(v) => { setFormData(p => ({ ...p, phone: v })); clearError("phone"); setSelectedSavedAddressId(null); }}
                         error={errors.phone}
                         placeholder="+91 98765 43210"
                         type="tel"
@@ -349,7 +425,7 @@ export default function CheckoutPage() {
                       <InputField
                         label="Address Line 1"
                         value={formData.addressLine1}
-                        onChange={(v) => { setFormData(p => ({ ...p, addressLine1: v })); clearError("addressLine1"); }}
+                        onChange={(v) => { setFormData(p => ({ ...p, addressLine1: v })); clearError("addressLine1"); setSelectedSavedAddressId(null); }}
                         error={errors.addressLine1}
                         placeholder="Street address, building, area"
                       />
@@ -361,7 +437,7 @@ export default function CheckoutPage() {
                       <input
                         type="text"
                         value={formData.addressLine2}
-                        onChange={(e) => setFormData(p => ({ ...p, addressLine2: e.target.value }))}
+                        onChange={(e) => { setFormData(p => ({ ...p, addressLine2: e.target.value })); setSelectedSavedAddressId(null); }}
                         className="w-full h-10 px-3 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                         placeholder="Landmark, nearby location"
                       />
@@ -370,7 +446,7 @@ export default function CheckoutPage() {
                       <InputField
                         label="City"
                         value={formData.city}
-                        onChange={(v) => { setFormData(p => ({ ...p, city: v })); clearError("city"); }}
+                        onChange={(v) => { setFormData(p => ({ ...p, city: v })); clearError("city"); setSelectedSavedAddressId(null); }}
                         error={errors.city}
                         placeholder="City"
                       />
@@ -381,7 +457,7 @@ export default function CheckoutPage() {
                       </label>
                       <select
                         value={formData.state}
-                        onChange={(e) => { setFormData(p => ({ ...p, state: e.target.value })); clearError("state"); }}
+                        onChange={(e) => { setFormData(p => ({ ...p, state: e.target.value })); clearError("state"); setSelectedSavedAddressId(null); }}
                         className={cn(
                           "w-full h-10 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 transition-all bg-white",
                           errors.state
@@ -408,7 +484,7 @@ export default function CheckoutPage() {
                       <InputField
                         label="Pincode"
                         value={formData.pincode}
-                        onChange={(v) => { setFormData(p => ({ ...p, pincode: v })); clearError("pincode"); }}
+                        onChange={(v) => { setFormData(p => ({ ...p, pincode: v })); clearError("pincode"); setSelectedSavedAddressId(null); }}
                         error={errors.pincode}
                         placeholder="6-digit pincode"
                         maxLength={6}

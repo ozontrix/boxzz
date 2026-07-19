@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -29,11 +29,17 @@ import {
   ChevronLeft,
   AlertCircle,
   Hash,
+  Eye,
+  EyeOff,
+  Shield,
+  RefreshCcw,
+  ExternalLink,
 } from "lucide-react";
 import { cn, formatPrice, formatDate } from "@/lib/utils";
 import { INDIAN_STATES, CONTACT_INFO } from "@/lib/constants";
 import { useApp } from "@/store";
 import type { Address, Order, OrderStatus } from "@/types";
+import { updatePassword, sendPasswordResetEmail, updateProfile } from "@/lib/api/auth";
 
 type Tab = "orders" | "addresses" | "profile";
 
@@ -124,6 +130,7 @@ function OrderCard({ order }: { order: Order }) {
   const [expanded, setExpanded] = useState(false);
   const config = STATUS_CONFIG[order.status];
   const itemsCount = order.items.reduce((sum, i) => sum + i.quantity, 0);
+  const isTrackable = order.status === "shipped" || order.status === "out-for-delivery";
 
   return (
     <motion.div
@@ -230,6 +237,29 @@ function OrderCard({ order }: { order: Order }) {
                   <p className="text-xs font-bold text-zinc-800 mt-0.5">{formatPrice(order.total)}</p>
                 </div>
               </div>
+
+              {/* Track Button */}
+              {isTrackable && order.trackingId && (
+                <motion.a
+                  href={`https://www.google.com/search?q=track+shipment+${order.trackingId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white text-xs font-semibold rounded-xl hover:bg-primary-dark transition-colors"
+                >
+                  <Truck className="w-4 h-4" />
+                  Track Shipment ({order.trackingId})
+                  <ExternalLink className="w-3 h-3" />
+                </motion.a>
+              )}
+
+              {/* View Details with status */}
+              {!isTrackable && order.status !== "delivered" && order.status !== "cancelled" && order.status !== "returned" && (
+                <div className="bg-orange-50 rounded-lg p-3 text-xs text-zinc-600">
+                  <p className="font-medium text-zinc-700 mb-1">Order Status: {STATUS_CONFIG[order.status]?.label}</p>
+                  <p>We are processing your order. You'll receive tracking details once it's shipped.</p>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -325,16 +355,47 @@ function AddressCard({
 }
 
 export default function AccountPage() {
-  const { state, logout, showToast, addAddress, updateAddress, removeAddress, setDefaultAddress } = useApp();
+  const { state, dispatch, logout, showToast, addAddress, updateAddress, removeAddress, setDefaultAddress, refreshUserData } = useApp();
   const { isAuthenticated, user } = state.auth;
   const [activeTab, setActiveTab] = useState<Tab>("orders");
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [addressForm, setAddressForm] = useState<AddressFormData>(EMPTY_ADDRESS_FORM);
   const [addressErrors, setAddressErrors] = useState<Partial<Record<keyof AddressFormData, string>>>({});
+  const [addressSubmitting, setAddressSubmitting] = useState(false);
+
+  // Profile editing state
+  const [profileName, setProfileName] = useState(user?.name || "");
+  const [profilePhone, setProfilePhone] = useState(user?.phone || "");
+  const [profileSubmitting, setProfileSubmitting] = useState(false);
+  const [showProfileForm, setShowProfileForm] = useState(false);
+
+  // Password state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   const orders = state.orders;
   const savedAddresses = state.savedAddresses;
+
+  // Sync profile fields when user loads
+  useEffect(() => {
+    if (user) {
+      setProfileName(user.name || "");
+      setProfilePhone(user.phone || "");
+    }
+  }, [user]);
+
+  // Refresh data on mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshUserData();
+    }
+  }, [isAuthenticated, refreshUserData]);
 
   // ─── Address Form Handlers ───
   const openAddAddress = () => {
@@ -377,12 +438,12 @@ export default function AccountPage() {
     return Object.keys(errs).length === 0;
   };
 
-  const handleAddressSubmit = (e: React.FormEvent) => {
+  const handleAddressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateAddressForm()) return;
+    setAddressSubmitting(true);
 
-    const addressData: Address = {
-      id: editingAddressId || `addr-${Date.now()}`,
+    const addressData = {
       label: addressForm.label,
       fullName: addressForm.fullName,
       phone: addressForm.phone,
@@ -398,17 +459,78 @@ export default function AccountPage() {
     };
 
     if (editingAddressId) {
-      updateAddress(addressData);
+      await updateAddress({ ...addressData, id: editingAddressId });
     } else {
-      addAddress(addressData);
+      await addAddress(addressData);
     }
 
+    setAddressSubmitting(false);
     setShowAddressForm(false);
     setEditingAddressId(null);
+    // Refresh to get latest from DB
+    refreshUserData();
   };
 
-  const handleDeleteAddress = (id: string) => {
-    removeAddress(id);
+  const handleDeleteAddress = async (id: string) => {
+    await removeAddress(id);
+    refreshUserData();
+  };
+
+  // ─── Profile Handlers ───
+  const handleProfileUpdate = async () => {
+    if (!profileName.trim()) {
+      showToast("error", "Validation Error", "Name cannot be empty.");
+      return;
+    }
+    setProfileSubmitting(true);
+    const result = await updateProfile({
+      name: profileName.trim(),
+      phone: profilePhone.trim() || undefined,
+    });
+    setProfileSubmitting(false);
+    if (result.user) {
+      dispatch({ type: "AUTH_UPDATE_USER", payload: result.user });
+      showToast("success", "Profile Updated", "Your profile has been updated successfully.");
+      setShowProfileForm(false);
+    } else {
+      showToast("error", "Update Failed", result.error || "Could not update profile.");
+    }
+  };
+
+  // ─── Password Handlers ───
+  const handlePasswordChange = async () => {
+    if (newPassword.length < 6) {
+      showToast("error", "Weak Password", "Password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showToast("error", "Passwords Don't Match", "New password and confirm password must match.");
+      return;
+    }
+    setPasswordSubmitting(true);
+    const result = await updatePassword(newPassword);
+    setPasswordSubmitting(false);
+    if (!result.error) {
+      showToast("success", "Password Changed", "Your password has been updated successfully.");
+      setShowPasswordForm(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } else {
+      showToast("error", "Password Change Failed", result.error);
+    }
+  };
+
+  const handleSendResetEmail = async () => {
+    if (!user?.email) return;
+    setResetEmailSent(false);
+    const result = await sendPasswordResetEmail(user.email);
+    if (!result.error) {
+      setResetEmailSent(true);
+      showToast("success", "Reset Email Sent", `Password reset link sent to ${user.email}`);
+    } else {
+      showToast("error", "Failed to Send", result.error);
+    }
   };
 
   // ─── Stats ───
@@ -423,7 +545,7 @@ export default function AccountPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-50/30 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-zinc-50/30 to-white pb-20">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
@@ -656,9 +778,10 @@ export default function AccountPage() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-colors shadow-lg shadow-primary/25"
+                    disabled={addressSubmitting}
+                    className="flex-1 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-colors shadow-lg shadow-primary/25 disabled:opacity-70"
                   >
-                    {editingAddressId ? "Update Address" : "Save Address"}
+                    {addressSubmitting ? "Saving..." : editingAddressId ? "Update Address" : "Save Address"}
                   </button>
                 </div>
               </form>
@@ -669,13 +792,13 @@ export default function AccountPage() {
         {/* ─── PROFILE TAB ─── */}
         {activeTab === "profile" && (
           <div className="space-y-3">
-            {/* User Info */}
+            {/* User Info Card */}
             <div className="bg-white rounded-xl border border-zinc-100 p-4 sm:p-5">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white font-bold text-lg">
                   {isAuthenticated && user?.name ? user.name.charAt(0).toUpperCase() : "?"}
                 </div>
-                <div>
+                <div className="flex-1">
                   {isAuthenticated && user ? (
                     <>
                       <h2 className="text-sm font-bold text-zinc-900">{user.name}</h2>
@@ -688,26 +811,72 @@ export default function AccountPage() {
                     </>
                   )}
                 </div>
+                {isAuthenticated && !showProfileForm && (
+                  <button
+                    onClick={() => setShowProfileForm(true)}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    Edit
+                  </button>
+                )}
               </div>
 
-              {isAuthenticated && user && (
+              {/* Profile Edit Form */}
+              <AnimatePresence>
+                {showProfileForm && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="space-y-3 pt-3 border-t border-zinc-100">
+                      <div>
+                        <label className="block text-xs font-medium text-zinc-600 mb-1">Full Name</label>
+                        <input
+                          type="text"
+                          value={profileName}
+                          onChange={(e) => setProfileName(e.target.value)}
+                          className="w-full h-10 px-3 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-zinc-600 mb-1">Phone (Optional)</label>
+                        <input
+                          type="tel"
+                          value={profilePhone}
+                          onChange={(e) => setProfilePhone(e.target.value)}
+                          className="w-full h-10 px-3 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                          placeholder="+91 98765 43210"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setShowProfileForm(false); setProfileName(user?.name || ""); setProfilePhone(user?.phone || ""); }}
+                          className="px-4 py-2 border border-zinc-200 text-zinc-700 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleProfileUpdate}
+                          disabled={profileSubmitting}
+                          className="flex-1 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-colors disabled:opacity-70"
+                        >
+                          {profileSubmitting ? "Saving..." : "Save Changes"}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {!showProfileForm && isAuthenticated && user && (
                 <div className="space-y-2 text-xs text-zinc-600">
                   {user.phone && (
                     <div className="flex items-center gap-2">
                       <Phone className="w-3.5 h-3.5 text-zinc-400" />
                       {user.phone}
-                    </div>
-                  )}
-                  {user.company && (
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-3.5 h-3.5 text-zinc-400" />
-                      {user.company}
-                    </div>
-                  )}
-                  {user.gstin && (
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-3.5 h-3.5 text-zinc-400" />
-                      {user.gstin}
                     </div>
                   )}
                 </div>
@@ -730,6 +899,106 @@ export default function AccountPage() {
                 </div>
               )}
             </div>
+
+            {/* Password / Security */}
+            {isAuthenticated && (
+              <div className="bg-white rounded-xl border border-zinc-100 p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-primary" />
+                    <h3 className="text-sm font-semibold text-zinc-800">Security</h3>
+                  </div>
+                  {!showPasswordForm && (
+                    <button
+                      onClick={() => setShowPasswordForm(true)}
+                      className="text-xs font-medium text-primary hover:text-primary-dark transition-colors"
+                    >
+                      Change Password
+                    </button>
+                  )}
+                </div>
+
+                <AnimatePresence>
+                  {showPasswordForm && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-3 pt-3 border-t border-zinc-100">
+                        <div>
+                          <label className="block text-xs font-medium text-zinc-600 mb-1">New Password</label>
+                          <div className="relative">
+                            <input
+                              type={showPasswords.new ? "text" : "password"}
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                              className="w-full h-10 px-3 pr-10 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                              placeholder="Min 6 characters"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPasswords(p => ({ ...p, new: !p.new }))}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                            >
+                              {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-zinc-600 mb-1">Confirm New Password</label>
+                          <div className="relative">
+                            <input
+                              type={showPasswords.confirm ? "text" : "password"}
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              className="w-full h-10 px-3 pr-10 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                              placeholder="Re-enter new password"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPasswords(p => ({ ...p, confirm: !p.confirm }))}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                            >
+                              {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { setShowPasswordForm(false); setNewPassword(""); setConfirmPassword(""); }}
+                            className="px-4 py-2 border border-zinc-200 text-zinc-700 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handlePasswordChange}
+                            disabled={passwordSubmitting}
+                            className="flex-1 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-colors disabled:opacity-70"
+                          >
+                            {passwordSubmitting ? "Updating..." : "Update Password"}
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Forgot Password via Email */}
+                {!showPasswordForm && (
+                  <div className="mt-3 pt-3 border-t border-zinc-100">
+                    <button
+                      onClick={handleSendResetEmail}
+                      disabled={resetEmailSent}
+                      className="text-xs font-medium text-primary hover:text-primary-dark transition-colors disabled:text-zinc-400"
+                    >
+                      {resetEmailSent ? "✓ Reset link sent!" : "Send password reset email instead"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Quick Stats */}
             <div className="grid grid-cols-2 gap-3">

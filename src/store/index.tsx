@@ -11,6 +11,14 @@ import React, {
 import type { CartItem, Product, Address, User, Order, OrderStatus } from "@/types";
 import { getCurrentSession, signIn as apiSignIn, signUp as apiSignUp, signOut as apiSignOut } from "@/lib/api";
 import { getShippingConfig, type ShippingConfig } from "@/lib/api/db";
+import {
+  getUserAddresses,
+  addAddress as apiAddAddress,
+  updateAddress as apiUpdateAddress,
+  deleteAddress as apiDeleteAddress,
+  setDefaultAddressInDb,
+  getUserOrders,
+} from "@/lib/api/db";
 
 // ─── State Types ──────────────────────────────────────────────────
 
@@ -59,15 +67,18 @@ type Action =
   | { type: "AUTH_LOGIN"; payload: User }
   | { type: "AUTH_LOGOUT" }
   | { type: "AUTH_SET_LOADING"; payload: boolean }
+  | { type: "AUTH_UPDATE_USER"; payload: User }
   | { type: "ADD_TOAST"; payload: Toast }
   | { type: "REMOVE_TOAST"; payload: { id: string } }
   | { type: "SET_CHECKOUT_ADDRESS"; payload: Address | null }
   | { type: "ADD_ORDER"; payload: Order }
   | { type: "UPDATE_ORDER_STATUS"; payload: { orderId: string; status: OrderStatus } }
+  | { type: "SET_ORDERS"; payload: Order[] }
   | { type: "ADD_ADDRESS"; payload: Address }
   | { type: "UPDATE_ADDRESS"; payload: Address }
   | { type: "REMOVE_ADDRESS"; payload: { addressId: string } }
   | { type: "SET_DEFAULT_ADDRESS"; payload: { addressId: string } }
+  | { type: "SET_ADDRESSES"; payload: Address[] }
   | { type: "HYDRATE"; payload: Partial<AppState> };
 
 const STORAGE_KEY = "boxzz_store";
@@ -254,12 +265,20 @@ function appReducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         auth: { user: null, isAuthenticated: false, isLoading: false },
+        orders: [],
+        savedAddresses: [],
       };
 
     case "AUTH_SET_LOADING":
       return {
         ...state,
         auth: { ...state.auth, isLoading: action.payload },
+      };
+
+    case "AUTH_UPDATE_USER":
+      return {
+        ...state,
+        auth: { ...state.auth, user: action.payload },
       };
 
     case "ADD_TOAST":
@@ -296,6 +315,12 @@ function appReducer(state: AppState, action: Action): AppState {
         ),
       };
 
+    case "SET_ORDERS":
+      return {
+        ...state,
+        orders: action.payload,
+      };
+
     case "ADD_ADDRESS":
       return {
         ...state,
@@ -325,6 +350,12 @@ function appReducer(state: AppState, action: Action): AppState {
           ...a,
           isDefault: a.id === action.payload.addressId,
         })),
+      };
+
+    case "SET_ADDRESSES":
+      return {
+        ...state,
+        savedAddresses: action.payload,
       };
 
     case "HYDRATE":
@@ -360,11 +391,12 @@ interface AppContextType {
   setCheckoutAddress: (address: Address | null) => void;
   addOrder: (order: Order) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
-  addAddress: (address: Address) => void;
-  updateAddress: (address: Address) => void;
-  removeAddress: (addressId: string) => void;
+  addAddress: (address: Omit<Address, "id">) => Promise<void>;
+  updateAddress: (address: Address) => Promise<void>;
+  removeAddress: (addressId: string) => Promise<void>;
   setDefaultAddress: (addressId: string) => void;
   getDefaultAddress: () => Address | undefined;
+  refreshUserData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -400,23 +432,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [state.cart]);
 
-  // Sync wishlist/orders/addresses to localStorage
+  // Sync wishlist to localStorage
   useEffect(() => {
     try {
-      const { toasts, checkoutAddress, auth, cart, ...persistable } = state;
+      const { toasts, checkoutAddress, auth, cart, orders, savedAddresses, ...persistable } = state;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(persistable));
     } catch (e) {
       console.warn("Failed to persist store:", e);
     }
-  }, [state.wishlist, state.orders, state.savedAddresses]);
+  }, [state.wishlist]);
 
-  // Check auth session on mount (async, doesn't block cart)
+  // Check auth session on mount and fetch DB data
   useEffect(() => {
     async function checkAuth() {
       try {
         const { user } = await getCurrentSession();
         if (user) {
           dispatch({ type: "AUTH_LOGIN", payload: user });
+          // Fetch orders and addresses from DB
+          const [orders, addresses] = await Promise.all([
+            getUserOrders(user.id),
+            getUserAddresses(user.id),
+          ]);
+          dispatch({ type: "SET_ORDERS", payload: orders });
+          dispatch({ type: "SET_ADDRESSES", payload: addresses });
         } else {
           dispatch({ type: "AUTH_SET_LOADING", payload: false });
         }
@@ -426,6 +465,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     checkAuth();
   }, []);
+
+  const refreshUserData = useCallback(async () => {
+    const user = state.auth.user;
+    if (!user) return;
+    try {
+      const [orders, addresses] = await Promise.all([
+        getUserOrders(user.id),
+        getUserAddresses(user.id),
+      ]);
+      dispatch({ type: "SET_ORDERS", payload: orders });
+      dispatch({ type: "SET_ADDRESSES", payload: addresses });
+    } catch (e) {
+      console.error("refreshUserData error:", e);
+    }
+  }, [state.auth.user]);
 
   const addToCart = useCallback(
     (product: Product, quantity = 1, variant?: string) => {
@@ -510,6 +564,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const result = await apiSignIn(email, password);
     if (result.user) {
       dispatch({ type: "AUTH_LOGIN", payload: result.user });
+      // Fetch DB data after login
+      getUserOrders(result.user.id).then(orders => dispatch({ type: "SET_ORDERS", payload: orders }));
+      getUserAddresses(result.user.id).then(addrs => dispatch({ type: "SET_ADDRESSES", payload: addrs }));
       dispatch({
         type: "ADD_TOAST",
         payload: generateToast("success", "Welcome back!", `Signed in as ${result.user.name}`),
@@ -571,37 +628,74 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "UPDATE_ORDER_STATUS", payload: { orderId, status } });
   }, []);
 
-  const addAddress = useCallback((address: Address) => {
-    dispatch({ type: "ADD_ADDRESS", payload: address });
-    dispatch({
-      type: "ADD_TOAST",
-      payload: generateToast("success", "Address Saved", "Your address has been saved successfully."),
-    });
+  const addAddress = useCallback(async (address: Omit<Address, "id">) => {
+    const user = state.auth.user;
+    if (!user) {
+      dispatch({
+        type: "ADD_TOAST",
+        payload: generateToast("error", "Not signed in", "Please sign in to save addresses."),
+      });
+      return;
+    }
+    const saved = await apiAddAddress(user.id, address);
+    if (saved) {
+      dispatch({ type: "ADD_ADDRESS", payload: saved });
+      dispatch({
+        type: "ADD_TOAST",
+        payload: generateToast("success", "Address Saved", "Your address has been saved to your account."),
+      });
+    } else {
+      dispatch({
+        type: "ADD_TOAST",
+        payload: generateToast("error", "Failed to Save", "Could not save address. Please try again."),
+      });
+    }
+  }, [state.auth.user]);
+
+  const updateAddress = useCallback(async (address: Address) => {
+    const success = await apiUpdateAddress(address);
+    if (success) {
+      dispatch({ type: "UPDATE_ADDRESS", payload: address });
+      dispatch({
+        type: "ADD_TOAST",
+        payload: generateToast("success", "Address Updated", "Your address has been updated."),
+      });
+    } else {
+      dispatch({
+        type: "ADD_TOAST",
+        payload: generateToast("error", "Update Failed", "Could not update address."),
+      });
+    }
   }, []);
 
-  const updateAddress = useCallback((address: Address) => {
-    dispatch({ type: "UPDATE_ADDRESS", payload: address });
-    dispatch({
-      type: "ADD_TOAST",
-      payload: generateToast("success", "Address Updated", "Your address has been updated."),
-    });
+  const removeAddress = useCallback(async (addressId: string) => {
+    const success = await apiDeleteAddress(addressId);
+    if (success) {
+      dispatch({ type: "REMOVE_ADDRESS", payload: { addressId } });
+      dispatch({
+        type: "ADD_TOAST",
+        payload: generateToast("info", "Address Removed", "Address has been removed."),
+      });
+    } else {
+      dispatch({
+        type: "ADD_TOAST",
+        payload: generateToast("error", "Delete Failed", "Could not remove address."),
+      });
+    }
   }, []);
 
-  const removeAddress = useCallback((addressId: string) => {
-    dispatch({ type: "REMOVE_ADDRESS", payload: { addressId } });
-    dispatch({
-      type: "ADD_TOAST",
-      payload: generateToast("info", "Address Removed", "Address has been removed."),
-    });
-  }, []);
-
-  const setDefaultAddress = useCallback((addressId: string) => {
-    dispatch({ type: "SET_DEFAULT_ADDRESS", payload: { addressId } });
-    dispatch({
-      type: "ADD_TOAST",
-      payload: generateToast("success", "Default Address Set", "This is now your default address."),
-    });
-  }, []);
+  const setDefaultAddress = useCallback(async (addressId: string) => {
+    const user = state.auth.user;
+    if (!user) return;
+    const success = await setDefaultAddressInDb(addressId, user.id);
+    if (success) {
+      dispatch({ type: "SET_DEFAULT_ADDRESS", payload: { addressId } });
+      dispatch({
+        type: "ADD_TOAST",
+        payload: generateToast("success", "Default Address Set", "This is now your default address."),
+      });
+    }
+  }, [state.auth.user]);
 
   const getDefaultAddress = useCallback((): Address | undefined => {
     return state.savedAddresses.find((a) => a.isDefault) || state.savedAddresses[0];
@@ -632,6 +726,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     removeAddress,
     setDefaultAddress,
     getDefaultAddress,
+    refreshUserData,
   };
 
   return (

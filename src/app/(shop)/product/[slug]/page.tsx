@@ -33,10 +33,11 @@ export default function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const product = getProductBySlug(slug);
-  const relatedProducts = product ? getRelatedProducts(product.id) : [];
+  const [product, setProduct] = useState<ProductType | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<ProductType[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [quantity, setQuantity] = useState(product?.moq || 1);
+  const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"description" | "specs" | "features">("description");
   const [addedToCart, setAddedToCart] = useState(false);
@@ -44,9 +45,37 @@ export default function ProductDetailPage({
 
   const { addToCart, removeFromCart, addToWishlist, removeFromWishlist, isInWishlist, isInCart, getCartQuantity, showToast, updateCartQuantity } = useApp();
 
-  if (!product) {
-    notFound();
+  useEffect(() => {
+    async function load() {
+      try {
+        const p = await getProductBySlug(slug);
+        if (!p) {
+          notFound();
+          return;
+        }
+        setProduct(p);
+        setQuantity(p.moq || 1);
+        const related = await getRelatedProducts(p.id);
+        setRelatedProducts(related);
+      } catch (e) {
+        console.error("Failed to load product:", e);
+        notFound();
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, [slug]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
   }
+
+  if (!product) return null;
 
   const discount = product.originalPrice
     ? calculateDiscount(product.originalPrice, product.price)

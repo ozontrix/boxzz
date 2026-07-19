@@ -30,20 +30,22 @@ export default function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [bestSellerProducts, setBestSellerProducts] = useState<Product[]>([]);
   const [newProducts, setNewProducts] = useState<Product[]>([]);
+  const [featuredCategories, setFeaturedCategories] = useState<FeaturedCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const featuredCategories = getFeaturedCategories();
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [featured, bestSellers, newArrivals] = await Promise.all([
+        const [featured, bestSellers, newArrivals, categories] = await Promise.all([
           getFeaturedProducts(),
           getBestSellerProducts(),
           getNewProducts(),
+          getFeaturedCategories(),
         ]);
         setFeaturedProducts(featured);
         setBestSellerProducts(bestSellers);
         setNewProducts(newArrivals);
+        setFeaturedCategories(categories);
       } catch (e) {
         console.error("Failed to load homepage data:", e);
       } finally {

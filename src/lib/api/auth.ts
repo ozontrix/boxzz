@@ -161,3 +161,56 @@ export async function updatePassword(
     return { error: e.message || "Update failed" };
   }
 }
+
+/**
+ * Send password reset email
+ */
+export async function sendPasswordResetEmail(
+  email: string
+): Promise<{ error?: string }> {
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/account`,
+    });
+    if (error) throw error;
+    return {};
+  } catch (e: any) {
+    console.error("sendPasswordResetEmail error:", e);
+    return { error: e.message || "Failed to send reset email" };
+  }
+}
+
+/**
+ * Update user profile metadata
+ */
+export async function updateProfile(data: {
+  name?: string;
+  phone?: string;
+}): Promise<{ user: User | null; error?: string }> {
+  try {
+    const updateData: Record<string, any> = {};
+    if (data.name) {
+      updateData.data = { name: data.name, full_name: data.name };
+    }
+    if (data.phone) {
+      updateData.phone = data.phone;
+    }
+
+    const { data: result, error } = await supabase.auth.updateUser(updateData);
+    if (error) throw error;
+    if (!result.user) return { user: null, error: "No user returned" };
+
+    const user: User = {
+      id: result.user.id,
+      name: result.user.user_metadata?.name || result.user.email?.split("@")[0] || "User",
+      email: result.user.email || "",
+      phone: result.user.phone ?? undefined,
+      addresses: [],
+    };
+
+    return { user };
+  } catch (e: any) {
+    console.error("updateProfile error:", e);
+    return { user: null, error: e.message || "Update failed" };
+  }
+}

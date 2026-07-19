@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAdmin } from "@/store/adminStore";
 import { adminGetSettings, adminUpdateSettings } from "@/lib/api/admin";
+import { SITE_NAME, FREE_SHIPPING_THRESHOLD, STANDARD_SHIPPING_CHARGE, GST_RATE, CONTACT_INFO } from "@/lib/constants";
 
 interface Setting {
   key: string;
@@ -13,9 +14,11 @@ interface Setting {
   section: string;
 }
 
-const SECTION_CONFIG: Record<string, { label: string; icon: string }> = {
-  general: { label: "General", icon: "⚙️" },
-  contact: { label: "Contact", icon: "📞" },
+const SECTION_CONFIG: Record<string, { label: string; icon: string; description: string }> = {
+  general: { label: "General", icon: "⚙️", description: "Site name, description, tagline & currency settings" },
+  contact: { label: "Contact", icon: "📞", description: "Phone, email, address & working hours" },
+  shipping: { label: "Shipping & GST", icon: "🚚", description: "Free shipping threshold, standard charge & GST rate" },
+  legal: { label: "Legal Pages", icon: "📜", description: "Privacy Policy, Terms & Conditions, Shipping Policy content" },
 };
 
 export default function AdminSettingsPage() {
@@ -42,7 +45,9 @@ export default function AdminSettingsPage() {
     loadSettings();
   }, [loadSettings]);
 
-  const sections = [...new Set(settings.map((s) => s.section))];
+  const sections = [...new Set(settings.map((s) => s.section))].filter(s => SECTION_CONFIG[s]?.label).sort();
+  // Ensure all expected sections exist even if no settings in them yet
+  const allSections = ["general", "contact", "shipping", "legal"].filter(s => sections.includes(s) || true);
 
   const getValue = (key: string) => settings.find((s) => s.key === key)?.value || "";
 
@@ -143,7 +148,7 @@ export default function AdminSettingsPage() {
         {/* Sidebar Navigation */}
         <div className="lg:w-56 shrink-0">
           <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-            {sections.map((section) => (
+            {allSections.map((section) => (
               <button
                 key={section}
                 onClick={() => setActiveSection(section)}
@@ -192,12 +197,15 @@ export default function AdminSettingsPage() {
               <span className="text-2xl">{SECTION_CONFIG[activeSection]?.icon || "📋"}</span>
               <div>
                 <h3 className="text-lg font-bold text-zinc-900">{SECTION_CONFIG[activeSection]?.label || activeSection}</h3>
-                <p className="text-xs text-zinc-400 capitalize">{activeSection} configuration</p>
+                <p className="text-xs text-zinc-400">{SECTION_CONFIG[activeSection]?.description || `${activeSection} configuration`}</p>
               </div>
             </div>
 
             {currentSettings.length === 0 ? (
-              <p className="text-sm text-zinc-400 text-center py-8">No settings in this section.</p>
+              <div className="text-center py-8">
+                <p className="text-sm text-zinc-400 mb-2">No settings in this section yet.</p>
+                <p className="text-xs text-zinc-300">Settings can be added via database migration.</p>
+              </div>
             ) : (
               <div className="space-y-5">
                 {currentSettings.map((setting) => (
@@ -209,15 +217,16 @@ export default function AdminSettingsPage() {
                       <textarea
                         value={setting.value}
                         onChange={(e) => handleChange(setting.key, e.target.value)}
-                        rows={3}
-                        className="w-full max-w-lg px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none transition-all"
+                        rows={setting.key.includes("content") ? 8 : 3}
+                        className="w-full max-w-2xl px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-y transition-all font-mono text-xs"
+                        placeholder={`Enter ${setting.label.toLowerCase()}...`}
                       />
                     ) : setting.type === "number" ? (
                       <input
                         type="number"
                         value={setting.value}
                         onChange={(e) => handleChange(setting.key, e.target.value)}
-                        step="0.01"
+                        step={setting.key === "gst_rate" ? "0.01" : "1"}
                         className="w-full max-w-xs px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                       />
                     ) : (

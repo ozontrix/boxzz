@@ -105,9 +105,9 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between text-xs text-zinc-600">
           <p>© {new Date().getFullYear()} {SITE_NAME}. All rights reserved.</p>
           <div className="flex items-center gap-4">
-            <span>Privacy Policy</span>
-            <span>Terms & Conditions</span>
-            <span>Shipping Policy</span>
+            <Link href="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+            <Link href="/terms-conditions" className="hover:text-primary transition-colors">Terms & Conditions</Link>
+            <Link href="/shipping-policy" className="hover:text-primary transition-colors">Shipping Policy</Link>
           </div>
         </div>
       </div>

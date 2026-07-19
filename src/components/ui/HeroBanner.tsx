@@ -5,25 +5,52 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { BANNERS } from "@/lib/constants";
+import { getBanners } from "@/lib/api/db";
+import type { Banner } from "@/types";
 
 export function HeroBanner() {
   const [current, setCurrent] = useState(0);
-
-  const next = useCallback(() => {
-    setCurrent((prev) => (prev + 1) % BANNERS.length);
-  }, []);
-
-  const prev = useCallback(() => {
-    setCurrent((prev) => (prev - 1 + BANNERS.length) % BANNERS.length);
-  }, []);
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    async function load() {
+      const data = await getBanners();
+      if (data.length > 0) {
+        setBanners(data);
+      }
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  const next = useCallback(() => {
+    if (banners.length === 0) return;
+    setCurrent((prev) => (prev + 1) % banners.length);
+  }, [banners.length]);
+
+  const prev = useCallback(() => {
+    if (banners.length === 0) return;
+    setCurrent((prev) => (prev - 1 + banners.length) % banners.length);
+  }, [banners.length]);
+
+  useEffect(() => {
+    if (banners.length === 0) return;
     const timer = setInterval(next, 5000);
     return () => clearInterval(timer);
-  }, [next]);
+  }, [next, banners.length]);
 
-  const banner = BANNERS[current];
+  if (loading || banners.length === 0) {
+    return (
+      <div className="relative w-full overflow-hidden bg-gradient-to-br from-orange-50 via-amber-100/50 to-white aspect-[3/2] sm:aspect-[2/1] lg:aspect-[21/9] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-full bg-zinc-200 animate-pulse mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  const banner = banners[current];
 
   return (
     <div className="relative w-full overflow-hidden">
@@ -93,7 +120,7 @@ export function HeroBanner() {
 
         {/* Dots */}
         <div className="absolute bottom-2 sm:bottom-3 lg:bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-          {BANNERS.map((_, idx) => (
+          {banners.map((_, idx) => (
             <button
               key={idx}
               onClick={() => setCurrent(idx)}

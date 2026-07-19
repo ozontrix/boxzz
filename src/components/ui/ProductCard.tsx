@@ -164,6 +164,15 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
             MOQ: {product.moq} {product.unit}s
           </div>
 
+          {/* Out of Stock Overlay */}
+          {(!product.inStock || product.stockCount <= 0) && (
+            <div className="absolute inset-0 bg-black/40 z-10 flex items-center justify-center">
+              <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg">
+                <span className="text-sm font-bold text-red-600">Out of Stock</span>
+              </div>
+            </div>
+          )}
+
           {/* Unit Badge */}
           <div className="absolute bottom-2 right-2 px-2 py-0.5 text-[10px] font-medium text-zinc-500 bg-white/80 backdrop-blur-sm rounded-md border border-zinc-200 capitalize">
             Per {product.unit}

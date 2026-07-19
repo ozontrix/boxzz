@@ -7,6 +7,8 @@ import {
   adminUpdateShippingSetting,
   adminDeleteShippingSetting,
   adminGetOrders,
+  adminGetSettings,
+  adminUpdateSetting,
 } from "@/lib/api/admin";
 import { FREE_SHIPPING_THRESHOLD, STANDARD_SHIPPING_CHARGE, GST_RATE, CONTACT_INFO } from "@/lib/constants";
 import type { ShippingSetting } from "@/lib/api/admin";
@@ -16,11 +18,21 @@ export default function AdminShippingPage() {
   const [shippingSettings, setShippingSettings] = useState<ShippingSetting[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"methods" | "zones" | "orders" | "settings">("methods");
+  const [activeTab, setActiveTab] = useState<"methods" | "settings">("methods");
   const [showForm, setShowForm] = useState(false);
   const [editingSetting, setEditingSetting] = useState<ShippingSetting | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Global shipping config from site_settings
+  const [globalConfig, setGlobalConfig] = useState({
+    free_shipping_threshold: String(FREE_SHIPPING_THRESHOLD),
+    standard_shipping_charge: String(STANDARD_SHIPPING_CHARGE),
+    gst_rate: String(GST_RATE),
+  });
+  const [configSaving, setConfigSaving] = useState(false);
+  const [configSaved, setConfigSaved] = useState(false);
+
   const [formData, setFormData] = useState({
     id: "",
     label: "",
@@ -36,12 +48,22 @@ export default function AdminShippingPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const [settings, ordersData] = await Promise.all([
+      const [settings, ordersData, siteSettings] = await Promise.all([
         adminGetShippingSettings(),
         adminGetOrders(),
+        adminGetSettings(),
       ]);
       setShippingSettings(settings);
       setOrders(ordersData);
+      
+      // Extract global config from site_settings
+      const cfg = { ...globalConfig };
+      for (const s of siteSettings) {
+        if (s.key === "free_shipping_threshold") cfg.free_shipping_threshold = s.value;
+        if (s.key === "standard_shipping_charge") cfg.standard_shipping_charge = s.value;
+        if (s.key === "gst_rate") cfg.gst_rate = s.value;
+      }
+      setGlobalConfig(cfg);
     } catch (err) {
       console.error("Failed to load data", err);
     } finally {
@@ -155,6 +177,23 @@ export default function AdminShippingPage() {
     }
   };
 
+  const handleConfigSave = async () => {
+    setConfigSaving(true);
+    try {
+      await Promise.all([
+        adminUpdateSetting("free_shipping_threshold", globalConfig.free_shipping_threshold),
+        adminUpdateSetting("standard_shipping_charge", globalConfig.standard_shipping_charge),
+        adminUpdateSetting("gst_rate", globalConfig.gst_rate),
+      ]);
+      setConfigSaved(true);
+      setTimeout(() => setConfigSaved(false), 3000);
+    } catch (err: any) {
+      alert("Error saving config: " + err.message);
+    } finally {
+      setConfigSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -165,8 +204,6 @@ export default function AdminShippingPage() {
 
   const tabs = [
     { id: "methods" as const, label: "Shipping Methods", icon: "🚚", count: shippingSettings.length },
-    { id: "zones" as const, label: "Coverage Zones", icon: "🌍" },
-    { id: "orders" as const, label: "Shipment Orders", icon: "📦", count: stats.pendingShipment },
     { id: "settings" as const, label: "Config", icon: "⚙️" },
   ];
 
@@ -190,7 +227,7 @@ export default function AdminShippingPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-zinc-900">Shipping & Logistics</h2>
-          <p className="text-sm text-zinc-500 mt-0.5">Manage shipping methods, rates, and delivery tracking</p>
+          <p className="text-sm text-zinc-500 mt-0.5">Manage shipping methods, rates, GST, and delivery tracking</p>
         </div>
         {activeTab === "methods" && (
           <button
@@ -230,7 +267,7 @@ export default function AdminShippingPage() {
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as "methods" | "zones" | "orders" | "settings")}
+            onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
               activeTab === tab.id ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
             }`}
@@ -343,137 +380,105 @@ export default function AdminShippingPage() {
         </div>
       )}
 
-      {/* Coverage Zones */}
-      {activeTab === "zones" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-2xl border border-zinc-100 p-6 shadow-sm text-center">
-            <div className="w-12 h-12 mx-auto rounded-xl bg-blue-50 flex items-center justify-center text-2xl mb-3">🇮🇳</div>
-            <p className="text-2xl font-bold text-zinc-900">29+</p>
-            <p className="text-xs text-zinc-500 mt-1">States Covered</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-zinc-100 p-6 shadow-sm text-center">
-            <div className="w-12 h-12 mx-auto rounded-xl bg-emerald-50 flex items-center justify-center text-2xl mb-3">🏙️</div>
-            <p className="text-2xl font-bold text-zinc-900">500+</p>
-            <p className="text-xs text-zinc-500 mt-1">Cities Served</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-zinc-100 p-6 shadow-sm text-center">
-            <div className="w-12 h-12 mx-auto rounded-xl bg-purple-50 flex items-center justify-center text-2xl mb-3">📦</div>
-            <p className="text-2xl font-bold text-zinc-900">PAN India</p>
-            <p className="text-xs text-zinc-500 mt-1">Delivery Network</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-zinc-100 p-6 shadow-sm text-center">
-            <div className="w-12 h-12 mx-auto rounded-xl bg-amber-50 flex items-center justify-center text-2xl mb-3">🚚</div>
-            <p className="text-2xl font-bold text-zinc-900">5-7</p>
-            <p className="text-xs text-zinc-500 mt-1">Business Days</p>
-          </div>
-        </div>
-      )}
-
-      {/* Shipment Orders */}
-      {activeTab === "orders" && (
-        <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-zinc-100">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Order</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Customer</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tracking</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Est. Delivery</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.filter((o) => o.status !== "delivered" && o.status !== "cancelled" && o.status !== "returned").map((order) => (
-                  <tr key={order.id} className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <span className="text-sm font-mono font-medium text-blue-600">#{order.id.slice(-8)}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-sm text-zinc-800">{order.shippingAddress.fullName || "N/A"}</p>
-                      <p className="text-xs text-zinc-400">{order.shippingAddress.city}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-[10px] px-2 py-1 rounded-full font-semibold capitalize text-amber-700 bg-amber-100">
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs font-mono text-zinc-600">{order.trackingId || "—"}</span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="text-xs text-zinc-500">
-                        {order.estimatedDelivery
-                          ? new Date(order.estimatedDelivery).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
-                          : "Not set"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {orders.filter((o) => o.status !== "delivered" && o.status !== "cancelled" && o.status !== "returned").length === 0 && (
-            <div className="py-12 text-center text-zinc-400">
-              <p className="text-sm">No pending shipments</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Config Settings */}
+      {/* Config Settings - DB Connected */}
       {activeTab === "settings" && (
         <div className="space-y-4">
+          {/* Global Shipping & GST Config */}
           <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6">
-            <h3 className="font-semibold text-zinc-900 mb-4">Shipping Configuration (from constants)</h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100">
-                  <p className="text-xs text-zinc-400 mb-1">Free Shipping Threshold</p>
-                  <p className="text-lg font-bold text-zinc-900">₹{FREE_SHIPPING_THRESHOLD.toLocaleString()}</p>
-                  <p className="text-[10px] text-zinc-400 mt-1">Orders above this get free shipping</p>
-                </div>
-                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100">
-                  <p className="text-xs text-zinc-400 mb-1">Standard Shipping Charge</p>
-                  <p className="text-lg font-bold text-zinc-900">₹{STANDARD_SHIPPING_CHARGE}</p>
-                  <p className="text-[10px] text-zinc-400 mt-1">Default shipping rate</p>
-                </div>
-                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100">
-                  <p className="text-xs text-zinc-400 mb-1">GST Rate</p>
-                  <p className="text-lg font-bold text-zinc-900">{(GST_RATE * 100).toFixed(0)}%</p>
-                  <p className="text-[10px] text-zinc-400 mt-1">Applied to subtotal</p>
-                </div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-zinc-900">Global Shipping & GST Configuration</h3>
+              <button
+                onClick={handleConfigSave}
+                disabled={configSaving}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  configSaved
+                    ? "bg-emerald-500 text-white"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                } disabled:opacity-50`}
+              >
+                {configSaving ? "Saving..." : configSaved ? "Saved!" : "Save to DB"}
+              </button>
+            </div>
+            <p className="text-xs text-zinc-400 mb-4">These values are stored in the site_settings DB table and used across the storefront.</p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Free Shipping Threshold (₹)</label>
+                <input
+                  type="number"
+                  value={globalConfig.free_shipping_threshold}
+                  onChange={(e) => setGlobalConfig({ ...globalConfig, free_shipping_threshold: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  min={0}
+                />
+                <p className="text-[10px] text-zinc-400 mt-1">Orders above this get free shipping</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Standard Shipping Charge (₹)</label>
+                <input
+                  type="number"
+                  value={globalConfig.standard_shipping_charge}
+                  onChange={(e) => setGlobalConfig({ ...globalConfig, standard_shipping_charge: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  min={0}
+                />
+                <p className="text-[10px] text-zinc-400 mt-1">Default shipping rate</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5">GST Rate (decimal)</label>
+                <input
+                  type="number"
+                  value={globalConfig.gst_rate}
+                  onChange={(e) => setGlobalConfig({ ...globalConfig, gst_rate: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                />
+                <p className="text-[10px] text-zinc-400 mt-1">E.g. 0.12 = 12%</p>
               </div>
             </div>
           </div>
 
+          {/* Contact Information */}
           <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6">
-            <h3 className="font-semibold text-zinc-900 mb-4">Contact Information</h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100">
-                  <p className="text-xs text-zinc-400 mb-1">Phone</p>
-                  <p className="text-sm font-medium text-zinc-800">{CONTACT_INFO.phone}</p>
-                </div>
-                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100">
-                  <p className="text-xs text-zinc-400 mb-1">Email</p>
-                  <p className="text-sm font-medium text-zinc-800">{CONTACT_INFO.email}</p>
-                </div>
-                <div className="sm:col-span-2 p-4 rounded-xl bg-zinc-50 border border-zinc-100">
-                  <p className="text-xs text-zinc-400 mb-1">Address</p>
-                  <p className="text-sm font-medium text-zinc-800">{CONTACT_INFO.address}</p>
-                </div>
-                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100">
-                  <p className="text-xs text-zinc-400 mb-1">Working Hours</p>
-                  <p className="text-sm font-medium text-zinc-800">{CONTACT_INFO.workingHours}</p>
-                </div>
+            <h3 className="font-semibold text-zinc-900 mb-4">Current Contact Information (from constants)</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100">
+                <p className="text-xs text-zinc-400 mb-1">Phone</p>
+                <p className="text-sm font-medium text-zinc-800">{CONTACT_INFO.phone}</p>
+              </div>
+              <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100">
+                <p className="text-xs text-zinc-400 mb-1">Email</p>
+                <p className="text-sm font-medium text-zinc-800">{CONTACT_INFO.email}</p>
+              </div>
+              <div className="sm:col-span-2 p-4 rounded-xl bg-zinc-50 border border-zinc-100">
+                <p className="text-xs text-zinc-400 mb-1">Address</p>
+                <p className="text-sm font-medium text-zinc-800">{CONTACT_INFO.address}</p>
+              </div>
+              <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100">
+                <p className="text-xs text-zinc-400 mb-1">Working Hours</p>
+                <p className="text-sm font-medium text-zinc-800">{CONTACT_INFO.workingHours}</p>
               </div>
             </div>
-            <div className="mt-4 p-4 rounded-xl bg-blue-50 border border-blue-100">
-              <p className="text-xs text-blue-700">
-                💡 These values are defined in <code className="bg-blue-100 px-1.5 py-0.5 rounded">src/lib/constants/index.ts</code>.
-                Edit the file to modify them permanently.
-              </p>
+          </div>
+
+          {/* Applied Config Summary */}
+          <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6">
+            <h3 className="font-semibold text-zinc-900 mb-4">How These Values Are Applied</h3>
+            <div className="space-y-3">
+              <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-xs text-blue-700">
+                <p className="font-medium mb-1">🔹 Storefront Checkout</p>
+                <p>The checkout page reads shipping settings from the <code className="bg-blue-100 px-1 rounded">shipping_settings</code> table for available shipping methods, and uses <code className="bg-blue-100 px-1 rounded">site_settings</code> for the free shipping threshold, standard charge, and GST rate.</p>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs text-emerald-700">
+                <p className="font-medium mb-1">🔹 Cart Calculations</p>
+                <p>Cart totals (subtotal → shipping → GST → total) use the DB values fetched by <code className="bg-emerald-100 px-1 rounded">getShippingConfig()</code>. The values sync on page load and are cached in localStorage.</p>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 text-xs text-amber-700">
+                <p className="font-medium mb-1">🔹 Shipping Methods</p>
+                <p>Add multiple shipping methods (Standard, Express, Free) with different rates. Each method has its own charge, free threshold, delivery timeframe, and regional coverage.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -483,8 +488,8 @@ export default function AdminShippingPage() {
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-zinc-100">
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-zinc-100 sticky top-0 bg-white z-10">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-zinc-900">
                   {editingSetting ? "Edit Shipping Method" : "Add Shipping Method"}

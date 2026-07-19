@@ -1,12 +1,45 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, Home } from "lucide-react";
-import { getCategoryBySlug, getProductsByCategory } from "@/data";
+import { supabase } from "@/lib/api/supabase";
+import { getCategoryBySlug } from "@/data";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import type { Product, Category } from "@/types";
+
+function mapProduct(raw: any): Product {
+  return {
+    id: raw.id,
+    name: raw.name,
+    slug: raw.slug,
+    description: raw.description,
+    shortDescription: raw.short_description,
+    price: raw.price,
+    originalPrice: raw.original_price ?? undefined,
+    images: raw.images ?? [],
+    category: raw.category,
+    subcategory: raw.subcategory,
+    features: raw.features ?? [],
+    specifications: raw.specifications ?? undefined,
+    rating: raw.rating,
+    reviewCount: raw.review_count,
+    inStock: raw.in_stock,
+    stockCount: raw.stock_count,
+    moq: raw.moq,
+    unit: raw.unit,
+    variants: raw.variants ?? undefined,
+    isNew: raw.is_new ?? false,
+    isFeatured: raw.is_featured ?? false,
+    isBestSeller: raw.is_best_seller ?? false,
+    discount: raw.discount ?? undefined,
+    customizationAvailable: raw.customization_available ?? false,
+    printingOptions: raw.printing_options ?? undefined,
+    createdAt: raw.created_at,
+  };
+}
 
 export default function CategoryPage({
   params,
@@ -14,12 +47,55 @@ export default function CategoryPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const category = getCategoryBySlug(slug);
-  const products = getProductsByCategory(slug);
+  const [category, setCategory] = useState<Category | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFoundState, setNotFoundState] = useState(false);
 
-  if (!category) {
+  useEffect(() => {
+    async function load() {
+      try {
+        const [cat] = await Promise.all([
+          getCategoryBySlug(slug),
+        ]);
+        if (!cat) {
+          setNotFoundState(true);
+          return;
+        }
+        setCategory(cat);
+        
+        // Fetch only in-stock, active products
+        const { data } = await supabase
+          .from("products")
+          .select("*")
+          .eq("category", slug)
+          .eq("in_stock", true)
+          .gt("stock_count", 0)
+          .order("created_at", { ascending: false });
+        setProducts((data ?? []).map(mapProduct));
+      } catch (e) {
+        console.error("Failed to load category:", e);
+        setNotFoundState(true);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, [slug]);
+
+  if (notFoundState) {
     notFound();
   }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!category) return null;
 
   return (
     <div className="min-h-screen">

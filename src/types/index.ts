@@ -138,8 +138,12 @@ export interface Order {
   items: CartItem[];
   status: OrderStatus;
   total: number;
+  subtotal: number;
+  shipping: number;
+  gst: number;
   shippingAddress: Address;
   paymentMethod: string;
+  notes?: string;
   createdAt: string;
   estimatedDelivery?: string;
   trackingId?: string;

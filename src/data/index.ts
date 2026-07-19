@@ -1,60 +1,81 @@
-import { CATEGORIES, FEATURED_CATEGORIES, FEATURED_PRODUCTS, BANNERS } from "@/lib/constants";
+// This file is kept for backward compatibility.
+// All data should be fetched from Supabase via src/lib/api/db.ts
+// These functions delegate to the real DB layer.
+
+import {
+  getAllProducts as dbGetAllProducts,
+  getFeaturedProducts as dbGetFeaturedProducts,
+  getBestSellerProducts as dbGetBestSellerProducts,
+  getNewProducts as dbGetNewProducts,
+  getProductBySlug as dbGetProductBySlug,
+  getProductById as dbGetProductById,
+  getProductsByCategory as dbGetProductsByCategory,
+  getRelatedProducts as dbGetRelatedProducts,
+  searchProducts as dbSearchProducts,
+  getAllCategories as dbGetAllCategories,
+  getCategoryBySlug as dbGetCategoryBySlug,
+  getBanners as dbGetBanners,
+} from "@/lib/api/db";
 import type { Product, Category, Banner, FeaturedCategory } from "@/types";
 
-export function getFeaturedProducts(): Product[] {
-  return FEATURED_PRODUCTS.filter((p) => p.isFeatured);
+// Products — always from Supabase
+export async function getFeaturedProducts(): Promise<Product[]> {
+  return dbGetFeaturedProducts();
 }
 
-export function getBestSellerProducts(): Product[] {
-  return FEATURED_PRODUCTS.filter((p) => p.isBestSeller);
+export async function getBestSellerProducts(): Promise<Product[]> {
+  return dbGetBestSellerProducts();
 }
 
-export function getNewProducts(): Product[] {
-  return FEATURED_PRODUCTS.filter((p) => p.isNew);
+export async function getNewProducts(): Promise<Product[]> {
+  return dbGetNewProducts();
 }
 
-export function getProductBySlug(slug: string): Product | undefined {
-  return FEATURED_PRODUCTS.find((p) => p.slug === slug);
+export async function getProductBySlug(slug: string): Promise<Product | null> {
+  return dbGetProductBySlug(slug);
 }
 
-export function getProductById(id: string): Product | undefined {
-  return FEATURED_PRODUCTS.find((p) => p.id === id);
+export async function getProductById(id: string): Promise<Product | undefined> {
+  const product = await dbGetProductById(id);
+  return product ?? undefined;
 }
 
-export function getProductsByCategory(categoryId: string): Product[] {
-  return FEATURED_PRODUCTS.filter((p) => p.category === categoryId);
+export async function getProductsByCategory(categoryId: string): Promise<Product[]> {
+  return dbGetProductsByCategory(categoryId);
 }
 
-export function getFeaturedCategories(): FeaturedCategory[] {
-  return FEATURED_CATEGORIES;
+export async function getCategories(): Promise<Category[]> {
+  return dbGetAllCategories();
 }
 
-export function getCategories(): Category[] {
-  return CATEGORIES;
+export async function getCategoryBySlug(slug: string): Promise<Category | undefined> {
+  const cat = await dbGetCategoryBySlug(slug);
+  return cat ?? undefined;
 }
 
-export function getCategoryBySlug(slug: string): Category | undefined {
-  return CATEGORIES.find((c) => c.id === slug);
+export async function getBanners(): Promise<Banner[]> {
+  return dbGetBanners();
 }
 
-export function getBanners(): Banner[] {
-  return BANNERS;
+export async function getRelatedProducts(productId: string, limit = 4): Promise<Product[]> {
+  return dbGetRelatedProducts(productId, limit);
 }
 
-export function getRelatedProducts(productId: string, limit = 4): Product[] {
-  const product = getProductById(productId);
-  if (!product) return [];
-  return FEATURED_PRODUCTS.filter(
-    (p) => p.category === product.category && p.id !== productId
-  ).slice(0, limit);
+export async function searchProducts(query: string): Promise<Product[]> {
+  return dbSearchProducts(query);
 }
 
-export function searchProducts(query: string): Product[] {
-  const q = query.toLowerCase();
-  return FEATURED_PRODUCTS.filter(
-    (p) =>
-      p.name.toLowerCase().includes(q) ||
-      p.description.toLowerCase().includes(q) ||
-      p.category.toLowerCase().includes(q)
-  );
+// Featured categories are derived from DB categories
+export async function getFeaturedCategories(): Promise<FeaturedCategory[]> {
+  const categories = await dbGetAllCategories();
+  return categories.slice(0, 6).map((cat) => ({
+    id: cat.id,
+    name: cat.name,
+    icon: cat.icon,
+    description: cat.description,
+    shortDescription: cat.shortDescription,
+    image: cat.image,
+    productCount: cat.productCount,
+    subcategories: [cat.id],
+  }));
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,7 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CategoryCard } from "@/components/ui/CategoryCard";
 import { getCategories, getFeaturedCategories } from "@/data";
-import type { CategorySlug } from "@/types";
+import type { CategorySlug, Category, FeaturedCategory } from "@/types";
 
 // ─── Subcategory metadata ───
 interface SubcatInfo {
@@ -65,9 +65,28 @@ const iconMap: Record<string, React.ReactNode> = {
 };
 
 export default function CategoriesPage() {
-  const categories = useMemo(() => getCategories(), []);
-  const featuredCategories = useMemo(() => getFeaturedCategories(), []);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [featuredCategories, setFeaturedCategories] = useState<FeaturedCategory[]>([]);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [cats, featured] = await Promise.all([
+          getCategories(),
+          getFeaturedCategories(),
+        ]);
+        setCategories(cats);
+        setFeaturedCategories(featured);
+      } catch (e) {
+        console.error("Failed to load categories:", e);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50/30 to-white">
