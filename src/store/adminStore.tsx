@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback, ReactNode } from "react";
-import { adminSignIn, adminSignOut, getAdminSession } from "@/lib/api/admin";
+
+const API_BASE = "/api/admin/auth";
 
 // ─── Types ──────────────────────────────────────────────────────
 export interface AdminUser {
@@ -29,8 +30,6 @@ type AdminAction =
   | { type: "ADMIN_RESET_LOCK" }
   | { type: "ADMIN_SET_LOADING"; payload: boolean }
   | { type: "ADMIN_SET_ERROR"; payload: string | null };
-
-const ADMIN_STORAGE_KEY = "boxzz_admin_session";
 
 const initialAdminState: AdminState = {
   isAuthenticated: false,
@@ -94,16 +93,12 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
   const checkSession = useCallback(async () => {
     try {
-      const session = await getAdminSession();
-      if (session?.user) {
+      const res = await fetch(`${API_BASE}/session`, { credentials: "include" });
+      const data = await res.json();
+      if (data.user) {
         dispatch({
           type: "ADMIN_LOGIN",
-          payload: {
-            id: session.user.id,
-            email: session.user.email || "",
-            name: "Akshay",
-            role: "superadmin",
-          },
+          payload: data.user,
         });
       }
     } catch {}
@@ -123,20 +118,24 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "ADMIN_SET_LOADING", payload: true });
 
       try {
-        const data = await adminSignIn(email, password);
-        if (data.user) {
+        const res = await fetch(`${API_BASE}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.user) {
           dispatch({
             type: "ADMIN_LOGIN",
-            payload: {
-              id: data.user.id,
-              email: data.user.email || email,
-              name: "Akshay",
-              role: "superadmin",
-            },
+            payload: data.user,
           });
           return true;
         }
-        dispatch({ type: "ADMIN_LOGIN_FAIL", payload: "Invalid credentials" });
+
+        dispatch({ type: "ADMIN_LOGIN_FAIL", payload: data.error || "Invalid credentials" });
         return false;
       } catch (err: any) {
         dispatch({ type: "ADMIN_LOGIN_FAIL", payload: err.message || "Login failed" });
@@ -148,7 +147,10 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
   const adminLogout = useCallback(async () => {
     try {
-      await adminSignOut();
+      await fetch(`${API_BASE}/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
     } catch {}
     dispatch({ type: "ADMIN_LOGOUT" });
   }, []);
