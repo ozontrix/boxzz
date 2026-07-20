@@ -20,6 +20,9 @@ import {
   Clock,
   Info,
   Percent,
+  User,
+  LogIn,
+  UserPlus,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { useApp } from "@/store";
@@ -309,14 +312,42 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                <Link
-                  href="/checkout"
-                  className="mt-4 w-full flex items-center justify-center gap-2 px-5 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-colors shadow-lg shadow-primary/25 text-sm group"
-                >
-                  <Zap className="w-4 h-4" />
-                  Proceed to Checkout
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
+                {state.auth.isAuthenticated ? (
+                  <Link
+                    href="/checkout"
+                    className="mt-4 w-full flex items-center justify-center gap-2 px-5 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-colors shadow-lg shadow-primary/25 text-sm group"
+                  >
+                    <Zap className="w-4 h-4" />
+                    Proceed to Checkout
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                ) : (
+                  <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <User className="w-4 h-4 text-amber-600" />
+                      <span className="text-sm font-semibold text-amber-800">Login to continue</span>
+                    </div>
+                    <p className="text-xs text-amber-700 mb-3">
+                      Please sign in or create an account to proceed with checkout.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Link
+                        href="/login"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-colors shadow-md shadow-primary/20"
+                      >
+                        <LogIn className="w-4 h-4" />
+                        Sign In
+                      </Link>
+                      <Link
+                        href="/signup"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white text-primary text-sm font-semibold rounded-xl border border-primary hover:bg-orange-50 transition-colors"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        Create Account
+                      </Link>
+                    </div>
+                  </div>
+                )}
 
                 {/* Trust badges */}
                 <div className="mt-4 pt-4 border-t border-zinc-100 space-y-2">
