@@ -13,7 +13,8 @@ import {
   Sparkles,
   TrendingUp,
 } from "lucide-react";
-import { HeroBanner, MarqueeStrip } from "@/components/ui";
+import { HeroBanner } from "@/components/ui/HeroBanner";
+import { MarqueeStrip } from "@/components/ui/MarqueeStrip";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { CategoryCard } from "@/components/ui/CategoryCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -272,7 +273,7 @@ export default function HomePage() {
                 Get a Free Quote
               </Link>
               <a
-                href="tel:+919996896303"
+                href="tel:+918570059569"
                 className="px-6 sm:px-8 py-2.5 sm:py-3 bg-white/10 text-white font-medium rounded-xl hover:bg-white/20 transition-colors border border-white/20 text-sm sm:text-base"
               >
                 Call Us Now

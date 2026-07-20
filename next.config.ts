@@ -1,9 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  turbopack: {
-    root: process.cwd(),
-  },
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
@@ -14,7 +11,7 @@ const nextConfig: NextConfig = {
     ],
   },
   experimental: {
-    optimizePackageImports: ["@/components"],
+    optimizePackageImports: ["@/components/ui", "@/components/layout", "lucide-react", "framer-motion"],
   },
 };
 

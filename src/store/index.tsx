@@ -9,7 +9,7 @@ import React, {
   ReactNode,
 } from "react";
 import type { CartItem, Product, Address, User, Order, OrderStatus } from "@/types";
-import { getCurrentSession, signIn as apiSignIn, signUp as apiSignUp, signOut as apiSignOut } from "@/lib/api";
+import { getCurrentSession, signIn as apiSignIn, signUp as apiSignUp, signOut as apiSignOut } from "@/lib/api/auth";
 import { getShippingConfig, type ShippingConfig } from "@/lib/api/db";
 import {
   getUserAddresses,
@@ -198,6 +198,7 @@ function appReducer(state: AppState, action: Action): AppState {
           productId: product.id,
           name: product.name,
           price: product.price,
+          mrp: product.originalPrice || product.price,
           quantity: Math.max(quantity, product.moq),
           image: imageUrl,
           variant: variant,

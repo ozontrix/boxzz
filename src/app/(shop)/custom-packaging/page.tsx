@@ -30,7 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CONTACT_INFO } from "@/lib/constants";
 
-const WHATSAPP_NUMBER = "919996896303";
+const WHATSAPP_NUMBER = "918570059569";
 
 const PLY_OPTIONS = [
   { value: "3-ply", label: "3 Ply (Light)", desc: "For lightweight items", icon: "📄" },

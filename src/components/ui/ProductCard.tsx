@@ -5,8 +5,9 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Heart, ShoppingCart, Eye, Check } from "lucide-react";
 import { cn, formatPrice, calculateDiscount } from "@/lib/utils";
-import type { Product } from "@/types";
+import type { Product, ProductVariant } from "@/types";
 import { useApp } from "@/store";
+import { PackSizeSelector } from "./PackSizeSelector";
 
 interface ProductCardProps {
   product: Product;
@@ -18,14 +19,20 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    product.variants && product.variants.length > 0 ? product.variants[0] : null
+  );
 
-  const discount = product.originalPrice
+  const effectivePrice = selectedVariant?.price ?? product.price;
+  const effectiveMrp = selectedVariant?.mrp ?? product.originalPrice ?? effectivePrice;
+  const discount = selectedVariant?.discount ?? (product.originalPrice
     ? calculateDiscount(product.originalPrice, product.price)
-    : 0;
+    : 0);
 
   const inWishlist = isInWishlist(product.id);
   const inCart = isInCart(product.id);
   const hasSlider = (product.images?.length ?? 0) >= 2;
+  const hasVariants = product.variants && product.variants.length > 0;
 
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -44,8 +51,12 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     e.stopPropagation();
     if (inCart) return;
     setCartLoading(true);
-    addToCart(product, product.moq);
+    addToCart(product, product.moq, selectedVariant?.value);
     setTimeout(() => setCartLoading(false), 300);
+  };
+
+  const handleVariantSelect = (variant: ProductVariant) => {
+    setSelectedVariant(variant);
   };
 
   return (
@@ -202,6 +213,38 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               ({product.reviewCount})
             </span>
           </div>
+
+          {/* Compact Pack Size Chips */}
+          {hasVariants && (
+            <div className="mt-1.5" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+              <div className="flex flex-wrap gap-1.5">
+                {product.variants!.map((variant) => {
+                  const isSelected = selectedVariant?.id === variant.id;
+                  return (
+                    <button
+                      key={variant.id}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedVariant(variant);
+                      }}
+                      disabled={!variant.inStock}
+                      className={cn(
+                        "px-2 py-1 rounded-lg border text-[10px] font-semibold transition-all whitespace-nowrap",
+                        isSelected
+                          ? "border-primary bg-primary text-white shadow-sm"
+                          : variant.inStock
+                          ? "border-zinc-200 bg-white text-zinc-600 hover:border-primary/40 hover:bg-orange-50/30"
+                          : "border-zinc-100 bg-zinc-50 text-zinc-300 cursor-not-allowed"
+                      )}
+                    >
+                      {variant.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Price */}
           <div className="flex items-center gap-1.5 mt-1.5">

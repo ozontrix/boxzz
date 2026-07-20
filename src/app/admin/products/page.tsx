@@ -9,8 +9,9 @@ import {
   adminGetCategories,
 } from "@/lib/api/admin";
 import { supabase } from "@/lib/api/supabase";
-import type { Product, Category } from "@/types";
+import type { Product, Category, ProductVariant } from "@/types";
 
+// ─── Helper Icons ──────────────────────────────────────────────────
 function IconSearch() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -18,6 +19,50 @@ function IconSearch() {
     </svg>
   );
 }
+
+function IconPlus() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+  );
+}
+
+function IconX() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+// ─── Initial form state ────────────────────────────────────────────
+const emptyFormData = {
+  id: "",
+  name: "",
+  slug: "",
+  description: "",
+  short_description: "",
+  price: 0,
+  original_price: 0,
+  category: "",
+  subcategory: "",
+  stock_count: 0,
+  moq: 1,
+  unit: "piece" as string,
+  in_stock: true,
+  is_featured: false,
+  is_best_seller: false,
+  is_new: false,
+  discount: 0,
+  customization_available: false,
+  features: "",
+  images: "",
+  applications: "",
+  printing_options: "",
+  specifications: [] as { key: string; value: string }[],
+  variants: [] as ProductVariant[],
+};
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -30,28 +75,7 @@ export default function AdminProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({
-    id: "",
-    name: "",
-    slug: "",
-    description: "",
-    short_description: "",
-    price: 0,
-    original_price: 0,
-    category: "",
-    subcategory: "",
-    stock_count: 0,
-    moq: 1,
-    unit: "piece" as string,
-    in_stock: true,
-    is_featured: false,
-    is_best_seller: false,
-    is_new: false,
-    discount: 0,
-    customization_available: false,
-    features: "",
-    images: "",
-  });
+  const [formData, setFormData] = useState({ ...emptyFormData });
 
   const loadData = useCallback(async () => {
     try {
@@ -86,15 +110,16 @@ export default function AdminProductsPage() {
     });
   }, [products, search, categoryFilter, stockFilter]);
 
+  // ─── Form helpers ────────────────────────────────────────────────
+  const resetForm = () => setFormData({ ...emptyFormData });
+
   const openCreate = () => {
     setEditingProduct(null);
-    setFormData({
-      id: "", name: "", slug: "", description: "", short_description: "",
-      price: 0, original_price: 0, category: categories[0]?.id || "",
-      subcategory: "", stock_count: 0, moq: 1, unit: "piece",
-      in_stock: true, is_featured: false, is_best_seller: false, is_new: false,
-      discount: 0, customization_available: false, features: "", images: "",
-    });
+    resetForm();
+    setFormData((prev) => ({
+      ...prev,
+      category: categories[0]?.id || "",
+    }));
     setShowForm(true);
   };
 
@@ -121,16 +146,95 @@ export default function AdminProductsPage() {
       customization_available: product.customizationAvailable || false,
       features: (product.features || []).join(", "),
       images: (product.images || []).join(", "),
+      applications: (product.applications || []).join(", "),
+      printing_options: (product.printingOptions || []).join(", "),
+      specifications: product.specifications
+        ? Object.entries(product.specifications).map(([key, value]) => ({ key, value }))
+        : [],
+      variants: product.variants || [],
     });
     setShowForm(true);
   };
 
+  // ─── Variant helpers ─────────────────────────────────────────────
+  const addVariant = () => {
+    const newVar: ProductVariant = {
+      id: `var-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      label: "",
+      value: "",
+      price: formData.price,
+      mrp: formData.original_price || formData.price,
+      discount: formData.discount,
+      stock: formData.stock_count,
+      weight: 0,
+      sku: formData.slug || "",
+      inStock: true,
+    };
+    setFormData({ ...formData, variants: [...formData.variants, newVar] });
+  };
+
+  const updateVariant = (idx: number, field: keyof ProductVariant, value: any) => {
+    const variants = [...formData.variants];
+    variants[idx] = { ...variants[idx], [field]: value };
+    // Auto-calculate discount if price and mrp change
+    if (field === "price" || field === "mrp") {
+      const v = variants[idx];
+      if (v.mrp > v.price) {
+        v.discount = Math.round(((v.mrp - v.price) / v.mrp) * 100);
+      } else {
+        v.discount = 0;
+      }
+    }
+    setFormData({ ...formData, variants });
+  };
+
+  const removeVariant = (idx: number) => {
+    setFormData({
+      ...formData,
+      variants: formData.variants.filter((_, i) => i !== idx),
+    });
+  };
+
+  // ─── Specification helpers ───────────────────────────────────────
+  const addSpecification = () => {
+    setFormData({
+      ...formData,
+      specifications: [...formData.specifications, { key: "", value: "" }],
+    });
+  };
+
+  const updateSpecification = (idx: number, field: "key" | "value", value: string) => {
+    const specs = [...formData.specifications];
+    specs[idx] = { ...specs[idx], [field]: value };
+    setFormData({ ...formData, specifications: specs });
+  };
+
+  const removeSpecification = (idx: number) => {
+    setFormData({
+      ...formData,
+      specifications: formData.specifications.filter((_, i) => i !== idx),
+    });
+  };
+
+  // ─── Save ────────────────────────────────────────────────────────
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
       const features = formData.features.split(",").map((f) => f.trim()).filter(Boolean);
       const images = formData.images.split(",").map((img) => img.trim()).filter(Boolean);
+      const applications = formData.applications.split(",").map((a) => a.trim()).filter(Boolean);
+      const printingOptions = formData.printing_options.split(",").map((p) => p.trim()).filter(Boolean);
+      
+      // Build specifications object from key-value pairs
+      const specifications: Record<string, string> = {};
+      formData.specifications.forEach((spec) => {
+        if (spec.key.trim() && spec.value.trim()) {
+          specifications[spec.key.trim()] = spec.value.trim();
+        }
+      });
+
+      const variants = formData.variants.filter((v) => v.label.trim());
 
       if (editingProduct) {
         await adminUpdateProduct(editingProduct.id, {
@@ -153,6 +257,9 @@ export default function AdminProductsPage() {
           customization_available: formData.customization_available,
           features,
           images,
+          variants: variants.length > 0 ? variants : undefined,
+          specifications: Object.keys(specifications).length > 0 ? specifications : undefined,
+          printing_options: printingOptions.length > 0 ? printingOptions : undefined,
         });
       } else {
         const slug = formData.slug || formData.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
@@ -178,6 +285,9 @@ export default function AdminProductsPage() {
           customization_available: formData.customization_available,
           features,
           images,
+          variants: variants.length > 0 ? variants : undefined,
+          specifications: Object.keys(specifications).length > 0 ? specifications : undefined,
+          printing_options: printingOptions.length > 0 ? printingOptions : undefined,
         });
       }
       setShowForm(false);
@@ -200,6 +310,7 @@ export default function AdminProductsPage() {
     }
   };
 
+  // ─── Render helpers ──────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -220,9 +331,7 @@ export default function AdminProductsPage() {
           onClick={openCreate}
           className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+          <IconPlus />
           Add Product
         </button>
       </div>
@@ -274,6 +383,7 @@ export default function AdminProductsPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Category</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Price</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Stock</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Variants</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Actions</th>
               </tr>
@@ -300,6 +410,9 @@ export default function AdminProductsPage() {
                     <span className="text-sm text-zinc-600 capitalize">
                       {categories.find((c) => c.id === product.category)?.name || product.category.replace(/-/g, " ")}
                     </span>
+                    {product.subcategory && (
+                      <p className="text-xs text-zinc-400 mt-0.5">{product.subcategory}</p>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <span className="text-sm font-medium text-zinc-800">₹{product.price.toLocaleString()}</span>
@@ -309,6 +422,15 @@ export default function AdminProductsPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <span className="text-sm text-zinc-600">{product.stockCount.toLocaleString()}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {product.variants && product.variants.length > 0 ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700">
+                        {product.variants.length} sizes
+                      </span>
+                    ) : (
+                      <span className="text-xs text-zinc-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold ${
@@ -356,213 +478,370 @@ export default function AdminProductsPage() {
         )}
       </div>
 
-      {/* Create/Edit Product Modal */}
+      {/* ─── Create/Edit Product Modal ───────────────────────────── */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-zinc-100 sticky top-0 bg-white z-10">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-zinc-900">
                   {editingProduct ? "Edit Product" : "Add New Product"}
                 </h3>
                 <button onClick={() => setShowForm(false)} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-400">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <IconX />
                 </button>
               </div>
             </div>
-            <form onSubmit={handleSave} className="p-6 space-y-4">
-              {/* Basic Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-zinc-700 mb-1.5">Product Name *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1.5">Slug</label>
-                  <input
-                    type="text"
-                    value={formData.slug}
-                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                    placeholder="Auto-generated if empty"
-                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1.5">Category *</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    required
-                  >
-                    <option value="">Select category</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Pricing */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1.5">Price (₹) *</label>
-                  <input
-                    type="number"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    required
-                    min={0}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1.5">Original Price</label>
-                  <input
-                    type="number"
-                    value={formData.original_price}
-                    onChange={(e) => setFormData({ ...formData, original_price: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    min={0}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1.5">Discount (%)</label>
-                  <input
-                    type="number"
-                    value={formData.discount}
-                    onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    min={0}
-                    max={100}
-                  />
-                </div>
-              </div>
-
-              {/* Inventory */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1.5">Stock Count</label>
-                  <input
-                    type="number"
-                    value={formData.stock_count}
-                    onChange={(e) => setFormData({ ...formData, stock_count: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    min={0}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1.5">MOQ</label>
-                  <input
-                    type="number"
-                    value={formData.moq}
-                    onChange={(e) => setFormData({ ...formData, moq: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    min={1}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1.5">Unit</label>
-                  <select
-                    value={formData.unit}
-                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  >
-                    <option value="piece">Piece</option>
-                    <option value="roll">Roll</option>
-                    <option value="box">Box</option>
-                    <option value="set">Set</option>
-                    <option value="meter">Meter</option>
-                    <option value="kg">Kg</option>
-                    <option value="pack">Pack</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Flags */}
+            <form onSubmit={handleSave} className="p-6 space-y-6">
+              {/* ═══ Section: Basic Info ═══ */}
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-2">Product Flags</label>
+                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
+                  <span className="w-1 h-5 bg-blue-600 rounded-full" />
+                  Basic Information
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Product Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Slug</label>
+                    <input
+                      type="text"
+                      value={formData.slug}
+                      onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                      placeholder="Auto-generated if empty"
+                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Category *</label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      required
+                    >
+                      <option value="">Select category</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Subcategory</label>
+                    <input
+                      type="text"
+                      value={formData.subcategory}
+                      onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
+                      placeholder="e.g. Corrugated Boxes"
+                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ═══ Section: Pricing ═══ */}
+              <div>
+                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
+                  <span className="w-1 h-5 bg-green-600 rounded-full" />
+                  Pricing
+                </h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Price (₹) *</label>
+                    <input
+                      type="number"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      required
+                      min={0}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Original/MRP Price</label>
+                    <input
+                      type="number"
+                      value={formData.original_price}
+                      onChange={(e) => setFormData({ ...formData, original_price: Number(e.target.value) })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      min={0}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Discount (%)</label>
+                    <input
+                      type="number"
+                      value={formData.discount}
+                      onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      min={0}
+                      max={100}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ═══ Section: Inventory ═══ */}
+              <div>
+                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
+                  <span className="w-1 h-5 bg-amber-600 rounded-full" />
+                  Inventory
+                </h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Stock Count</label>
+                    <input
+                      type="number"
+                      value={formData.stock_count}
+                      onChange={(e) => setFormData({ ...formData, stock_count: Number(e.target.value) })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      min={0}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">MOQ</label>
+                    <input
+                      type="number"
+                      value={formData.moq}
+                      onChange={(e) => setFormData({ ...formData, moq: Number(e.target.value) })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      min={1}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Unit</label>
+                    <select
+                      value={formData.unit}
+                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      <option value="piece">Piece</option>
+                      <option value="roll">Roll</option>
+                      <option value="box">Box</option>
+                      <option value="set">Set</option>
+                      <option value="meter">Meter</option>
+                      <option value="kg">Kg</option>
+                      <option value="pack">Pack</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* ═══ Section: Product Flags ═══ */}
+              <div>
+                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
+                  <span className="w-1 h-5 bg-purple-600 rounded-full" />
+                  Product Flags
+                </h4>
                 <div className="flex flex-wrap gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.in_stock}
-                      onChange={(e) => setFormData({ ...formData, in_stock: e.target.checked })}
-                      className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-zinc-700">In Stock</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_featured}
-                      onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
-                      className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-zinc-700">Featured</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_best_seller}
-                      onChange={(e) => setFormData({ ...formData, is_best_seller: e.target.checked })}
-                      className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-zinc-700">Best Seller</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_new}
-                      onChange={(e) => setFormData({ ...formData, is_new: e.target.checked })}
-                      className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-zinc-700">New</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.customization_available}
-                      onChange={(e) => setFormData({ ...formData, customization_available: e.target.checked })}
-                      className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-zinc-700">Customizable</span>
-                  </label>
+                  {[
+                    { key: "in_stock", label: "In Stock" },
+                    { key: "is_featured", label: "Featured" },
+                    { key: "is_best_seller", label: "Best Seller" },
+                    { key: "is_new", label: "New" },
+                    { key: "customization_available", label: "Customizable" },
+                  ].map((flag) => (
+                    <label key={flag.key} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={(formData as any)[flag.key]}
+                        onChange={(e) => setFormData({ ...formData, [flag.key]: e.target.checked })}
+                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-zinc-700">{flag.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
-              {/* Description */}
+              {/* ═══ Section: Variants (Pack Sizes) ═══ */}
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Short Description</label>
-                <input
-                  type="text"
-                  value={formData.short_description}
-                  onChange={(e) => setFormData({ ...formData, short_description: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
-                />
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-bold text-zinc-800 flex items-center gap-2">
+                    <span className="w-1 h-5 bg-indigo-600 rounded-full" />
+                    Variants / Pack Sizes
+                    <span className="text-[10px] font-normal text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">
+                      e.g. Back of 50, Back of 100
+                    </span>
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={addVariant}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                  >
+                    <IconPlus />
+                    Add Variant
+                  </button>
+                </div>
+                
+                {formData.variants.length === 0 && (
+                  <div className="border-2 border-dashed border-zinc-200 rounded-xl p-6 text-center">
+                    <p className="text-sm text-zinc-400">No variants added yet.</p>
+                    <p className="text-xs text-zinc-300 mt-1">Add pack sizes like "Back of 50", "Back of 100" for this product.</p>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {formData.variants.map((variant, idx) => (
+                    <div key={variant.id} className="bg-zinc-50 rounded-xl border border-zinc-200 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                          Variant #{idx + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeVariant(idx)}
+                          className="p-1 rounded-lg hover:bg-red-100 text-zinc-400 hover:text-red-600 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="col-span-2 sm:col-span-1">
+                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Label *</label>
+                          <input
+                            type="text"
+                            value={variant.label}
+                            onChange={(e) => updateVariant(idx, "label", e.target.value)}
+                            placeholder="Back of 50"
+                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Value</label>
+                          <input
+                            type="text"
+                            value={variant.value}
+                            onChange={(e) => updateVariant(idx, "value", e.target.value)}
+                            placeholder="50"
+                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">SKU</label>
+                          <input
+                            type="text"
+                            value={variant.sku}
+                            onChange={(e) => updateVariant(idx, "sku", e.target.value)}
+                            placeholder="box-50"
+                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Weight (g)</label>
+                          <input
+                            type="number"
+                            value={variant.weight}
+                            onChange={(e) => updateVariant(idx, "weight", Number(e.target.value))}
+                            placeholder="0"
+                            min={0}
+                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Price (₹)</label>
+                          <input
+                            type="number"
+                            value={variant.price}
+                            onChange={(e) => updateVariant(idx, "price", Number(e.target.value))}
+                            placeholder="0"
+                            min={0}
+                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">MRP (₹)</label>
+                          <input
+                            type="number"
+                            value={variant.mrp}
+                            onChange={(e) => updateVariant(idx, "mrp", Number(e.target.value))}
+                            placeholder="0"
+                            min={0}
+                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Discount (%)</label>
+                          <input
+                            type="number"
+                            value={variant.discount}
+                            readOnly
+                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs bg-zinc-100 text-zinc-500 cursor-not-allowed"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Stock</label>
+                          <input
+                            type="number"
+                            value={variant.stock}
+                            onChange={(e) => updateVariant(idx, "stock", Number(e.target.value))}
+                            placeholder="0"
+                            min={0}
+                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={variant.inStock}
+                            onChange={(e) => updateVariant(idx, "inStock", e.target.checked)}
+                            className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-[11px] text-zinc-500">In Stock</span>
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* Features */}
+              {/* ═══ Section: Descriptions ═══ */}
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Features (comma separated)</label>
+                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
+                  <span className="w-1 h-5 bg-sky-600 rounded-full" />
+                  Descriptions
+                </h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Short Description</label>
+                    <input
+                      type="text"
+                      value={formData.short_description}
+                      onChange={(e) => setFormData({ ...formData, short_description: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Full Description</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      rows={4}
+                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ═══ Section: Features ═══ */}
+              <div>
+                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
+                  <span className="w-1 h-5 bg-rose-600 rounded-full" />
+                  Features
+                </h4>
                 <textarea
                   value={formData.features}
                   onChange={(e) => setFormData({ ...formData, features: e.target.value })}
@@ -570,11 +849,100 @@ export default function AdminProductsPage() {
                   placeholder="Feature 1, Feature 2, Feature 3"
                   className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
                 />
+                <p className="text-xs text-zinc-400 mt-1">Separate features with commas</p>
               </div>
 
-              {/* Images Upload */}
+              {/* ═══ Section: Specifications ═══ */}
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Product Images</label>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-bold text-zinc-800 flex items-center gap-2">
+                    <span className="w-1 h-5 bg-teal-600 rounded-full" />
+                    Specifications
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={addSpecification}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-teal-600 bg-teal-50 rounded-lg hover:bg-teal-100 transition-colors"
+                  >
+                    <IconPlus />
+                    Add Spec
+                  </button>
+                </div>
+                {formData.specifications.length === 0 && (
+                  <p className="text-sm text-zinc-400 italic">No specifications added. Click "Add Spec" to add key-value pairs.</p>
+                )}
+                <div className="space-y-2">
+                  {formData.specifications.map((spec, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={spec.key}
+                        onChange={(e) => updateSpecification(idx, "key", e.target.value)}
+                        placeholder="Specification name (e.g. Material)"
+                        className="flex-1 px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                      />
+                      <input
+                        type="text"
+                        value={spec.value}
+                        onChange={(e) => updateSpecification(idx, "value", e.target.value)}
+                        placeholder="Value (e.g. Corrugated Kraft)"
+                        className="flex-1 px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeSpecification(idx)}
+                        className="p-2 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-600 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ═══ Section: Applications ═══ */}
+              <div>
+                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
+                  <span className="w-1 h-5 bg-orange-600 rounded-full" />
+                  Applications
+                  <span className="text-[10px] font-normal text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">
+                    Use cases for this product
+                  </span>
+                </h4>
+                <textarea
+                  value={formData.applications}
+                  onChange={(e) => setFormData({ ...formData, applications: e.target.value })}
+                  rows={2}
+                  placeholder="E-commerce, Retail, Food Delivery, Electronics"
+                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
+                />
+                <p className="text-xs text-zinc-400 mt-1">Separate applications with commas</p>
+              </div>
+
+              {/* ═══ Section: Printing Options ═══ */}
+              <div>
+                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
+                  <span className="w-1 h-5 bg-cyan-600 rounded-full" />
+                  Printing Options
+                </h4>
+                <textarea
+                  value={formData.printing_options}
+                  onChange={(e) => setFormData({ ...formData, printing_options: e.target.value })}
+                  rows={2}
+                  placeholder="1-Color Print, 2-Color Print, Full CMYK, No Print"
+                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
+                />
+                <p className="text-xs text-zinc-400 mt-1">Separate printing options with commas</p>
+              </div>
+
+              {/* ═══ Section: Product Images ═══ */}
+              <div>
+                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
+                  <span className="w-1 h-5 bg-pink-600 rounded-full" />
+                  Product Images
+                </h4>
                 <div className="space-y-3">
                   {/* Upload Area */}
                   <div className="border-2 border-dashed border-zinc-200 rounded-xl p-6 text-center hover:border-blue-400 transition-colors">
@@ -679,7 +1047,8 @@ export default function AdminProductsPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
+              {/* ─── Action Buttons ─── */}
+              <div className="flex gap-3 pt-2 border-t border-zinc-100">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
@@ -690,9 +1059,19 @@ export default function AdminProductsPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {saving ? "Saving..." : editingProduct ? "Update Product" : "Create Product"}
+                  {saving ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    editingProduct ? "Update Product" : "Create Product"
+                  )}
                 </button>
               </div>
             </form>

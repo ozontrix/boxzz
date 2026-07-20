@@ -107,7 +107,7 @@ export default function RootLayout({
     description: defaultDescription,
     contactPoint: {
       "@type": "ContactPoint",
-      telephone: "+91-9996896303",
+      telephone: "+91-8570059569",
       contactType: "sales",
       availableLanguage: ["English", "Hindi"],
     },
@@ -120,7 +120,7 @@ export default function RootLayout({
       addressCountry: "IN",
     },
     sameAs: [
-      "https://wa.me/919996896303",
+      "https://wa.me/918570059569",
     ],
     foundingDate: "2020",
     numberOfEmployees: { "@type": "QuantitativeValue", minValue: "10", maxValue: "50" },

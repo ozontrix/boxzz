@@ -10,8 +10,6 @@ import {
   User,
   Menu,
   X,
-  ChevronDown,
-  ChevronRight,
   Package,
   Phone,
   LogIn,
@@ -21,7 +19,8 @@ import {
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { SITE_NAME, CONTACT_INFO } from "@/lib/constants";
-import { NAV_CATEGORIES } from "@/lib/constants/navigation";
+import { getAllCategories } from "@/lib/api/db";
+import type { Category } from "@/types";
 import { CartIcon } from "../ui/CartIcon";
 import { WishlistIcon } from "../ui/WishlistIcon";
 import { SearchBar } from "../ui/SearchBar";
@@ -33,9 +32,7 @@ export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [expandedMobileCat, setExpandedMobileCat] = useState<string | null>(null);
-  const dropdownTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -45,20 +42,9 @@ export function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleDropdownEnter = (id: string) => {
-    if (dropdownTimeout.current) clearTimeout(dropdownTimeout.current);
-    setActiveDropdown(id);
-  };
-
-  const handleDropdownLeave = () => {
-    dropdownTimeout.current = setTimeout(() => {
-      setActiveDropdown(null);
-    }, 150);
-  };
-
-  const toggleMobileCategory = (id: string) => {
-    setExpandedMobileCat(expandedMobileCat === id ? null : id);
-  };
+  useEffect(() => {
+    getAllCategories().then(setCategories);
+  }, []);
 
   return (
     <header
@@ -187,80 +173,22 @@ export function Header() {
         </AnimatePresence>
 
         {/* Category Navigation - Desktop */}
-        <nav className="hidden lg:flex items-center gap-0.5 border-t border-zinc-100 py-1.5">
+        <nav className="hidden lg:flex items-center gap-0.5 border-t border-zinc-100 py-1.5 overflow-x-auto">
           <Link
             href="/"
-            className="px-3 py-1.5 text-sm font-medium text-zinc-600 hover:text-primary hover:bg-orange-50 rounded-lg transition-colors whitespace-nowrap"
+            className="px-3 py-1.5 text-sm font-medium text-zinc-600 hover:text-primary hover:bg-orange-50 rounded-lg transition-colors whitespace-nowrap shrink-0"
           >
             Home
           </Link>
-          {NAV_CATEGORIES.map((navCat) => (
-            <div
-              key={navCat.id}
-              className="relative"
-              onMouseEnter={() => handleDropdownEnter(navCat.id)}
-              onMouseLeave={handleDropdownLeave}
+          {categories.map((cat) => (
+            <Link
+              key={cat.id}
+              href={`/category/${cat.id}`}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap text-zinc-600 hover:text-primary hover:bg-orange-50 shrink-0"
             >
-              <Link
-                href={navCat.href || "#"}
-                className={cn(
-                  "flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap",
-                  activeDropdown === navCat.id
-                    ? "text-primary bg-orange-50"
-                    : "text-zinc-600 hover:text-primary hover:bg-orange-50"
-                )}
-              >
-                <span className="text-base">{navCat.icon}</span>
-                <span>{navCat.name}</span>
-                {navCat.children.length > 0 && (
-                  <motion.span
-                    animate={{ rotate: activeDropdown === navCat.id ? 180 : 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </motion.span>
-                )}
-              </Link>
-
-              {/* Dropdown */}
-              <AnimatePresence>
-                {activeDropdown === navCat.id && navCat.children.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 6, scale: 0.96 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
-                    onMouseEnter={() => handleDropdownEnter(navCat.id)}
-                    onMouseLeave={handleDropdownLeave}
-                    className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-zinc-100 overflow-hidden z-50"
-                  >
-                    {/* Header */}
-                    <div className="px-4 py-3 bg-gradient-to-r from-orange-50 to-white border-b border-zinc-100">
-                      <p className="text-sm font-semibold text-zinc-800">{navCat.name}</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">{navCat.description}</p>
-                    </div>
-
-                    {/* Items */}
-                    <div className="py-1">
-                      {navCat.children.map((child) => (
-                        <Link
-                          key={child.id}
-                          href={child.href}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-600 hover:text-primary hover:bg-orange-50 transition-colors group"
-                        >
-                          <span className="text-lg flex-shrink-0">{child.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{child.name}</p>
-                            <p className="text-xs text-zinc-400 truncate">{child.shortDescription}</p>
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-zinc-300 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                        </Link>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+              {cat.icon && <span className="text-base">{cat.icon}</span>}
+              <span>{cat.name}</span>
+            </Link>
           ))}
         </nav>
       </div>
@@ -360,70 +288,21 @@ export function Header() {
                   ) : null}
                 </div>
 
-                {/* Categories with Nested Accordion */}
+                {/* Categories - Simple List */}
                 <div className="px-4 py-2">
                   <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider py-2">
                     Categories
                   </p>
-                  {NAV_CATEGORIES.map((navCat) => (
-                    <div key={navCat.id}>
-                      {navCat.children.length > 0 ? (
-                        <>
-                          <button
-                            onClick={() => toggleMobileCategory(navCat.id)}
-                            className="flex items-center justify-between w-full py-2.5 text-sm text-zinc-600 hover:text-primary transition-colors"
-                          >
-                            <span className="flex items-center gap-3">
-                              <span className="text-base">{navCat.icon}</span>
-                              <span className="font-medium">{navCat.name}</span>
-                            </span>
-                            <motion.span
-                              animate={{ rotate: expandedMobileCat === navCat.id ? 90 : 0 }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              <ChevronRight className="w-4 h-4 text-zinc-400" />
-                            </motion.span>
-                          </button>
-                          <AnimatePresence>
-                            {expandedMobileCat === navCat.id && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.2 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="ml-8 border-l-2 border-orange-100 pl-3 py-1 space-y-0.5">
-                                  {navCat.children.map((child) => (
-                                    <Link
-                                      key={child.id}
-                                      href={child.href}
-                                      onClick={() => setIsMobileMenuOpen(false)}
-                                      className="flex items-center gap-2.5 py-2 text-sm text-zinc-500 hover:text-primary transition-colors rounded-lg px-2 hover:bg-orange-50"
-                                    >
-                                      <span>{child.icon}</span>
-                                      <div>
-                                        <p>{child.name}</p>
-                                        <p className="text-[10px] text-zinc-400">{child.shortDescription}</p>
-                                      </div>
-                                    </Link>
-                                  ))}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </>
-                      ) : (
-                        <Link
-                          href={navCat.href || "#"}
-                          onClick={() => setIsMobileMenuOpen(false)}
-                          className="flex items-center gap-3 py-2.5 text-sm text-zinc-600 hover:text-primary transition-colors"
-                        >
-                          <span className="text-base">{navCat.icon}</span>
-                          <span className="font-medium">{navCat.name}</span>
-                        </Link>
-                      )}
-                    </div>
+                  {categories.map((cat) => (
+                    <Link
+                      key={cat.id}
+                      href={`/category/${cat.id}`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 py-2.5 text-sm text-zinc-600 hover:text-primary transition-colors"
+                    >
+                      {cat.icon && <span className="text-base">{cat.icon}</span>}
+                      <span className="font-medium">{cat.name}</span>
+                    </Link>
                   ))}
                 </div>
 

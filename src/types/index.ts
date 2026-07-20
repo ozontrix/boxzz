@@ -26,17 +26,25 @@ export interface Product {
   customizationAvailable?: boolean;
   printingOptions?: string[];
   createdAt: string;
+  applications?: string[];
+  deliveryInfo?: {
+    shipsWithin: string;
+    panIndia: boolean;
+    bulkOrders: boolean;
+  };
 }
 
 export interface ProductVariant {
   id: string;
   label: string;
-  value: string;
-  price?: number;
+  price: number;
+  mrp: number;
+  discount: number;
+  stock: number;
+  weight: number;
+  sku: string;
   inStock: boolean;
-  dimensions?: string;
-  thickness?: string;
-  material?: string;
+  value: string;
 }
 
 export type CategorySlug =
@@ -81,9 +89,12 @@ export interface CartItem {
   productId: string;
   name: string;
   price: number;
+  mrp: number;
   quantity: number;
   image: string;
   variant?: string;
+  variantLabel?: string;
+  shippingWeight?: number;
   customization?: string;
 }
 
