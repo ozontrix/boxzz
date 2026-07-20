@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -25,7 +25,9 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { SITE_NAME, CATEGORIES, CONTACT_INFO, FEATURED_CATEGORIES } from "@/lib/constants";
+import { SITE_NAME, CONTACT_INFO } from "@/lib/constants";
+import { getAllCategories } from "@/lib/api/db";
+import type { Category } from "@/types";
 
 const EXCLUDED_PATHS = ["/cart", "/checkout", "/wishlist"];
 
@@ -33,6 +35,20 @@ export function Footer() {
   const pathname = usePathname();
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [email, setEmail] = useState("");
+  const [dbCategories, setDbCategories] = useState<Category[]>([]);
+
+  // Fetch categories from DB on mount
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const cats = await getAllCategories();
+        setDbCategories(cats);
+      } catch (e) {
+        console.error("Failed to fetch categories for footer:", e);
+      }
+    }
+    fetchCategories();
+  }, []);
 
   // Hide footer on cart, checkout, wishlist
   if (EXCLUDED_PATHS.some((p) => pathname.startsWith(p))) return null;
@@ -82,7 +98,7 @@ export function Footer() {
     { label: "Shipping Policy", href: "/shipping-policy" },
   ];
 
-  const topCategories = CATEGORIES.slice(0, 6);
+  const topCategories = dbCategories.slice(0, 6);
 
   return (
     <footer className="block">
