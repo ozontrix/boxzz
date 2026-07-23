@@ -83,7 +83,7 @@ export default function LoginPage() {
         {/* Logo */}
         <Link href="/" className="flex items-center mb-6">
           <Image
-            src="/new_boxzz_logo.png"
+            src="/boxzz_final_logo.png"
             alt="Boxzz Logo"
             width={140}
             height={44}

@@ -17,7 +17,7 @@ const siteName = "Boxzz";
 const defaultTitle = "Boxzz — Premium Corrugated Boxes & Packaging Materials Manufacturer";
 const defaultDescription =
   "India's trusted manufacturer of corrugated boxes, packaging tapes (Flipkart, Amazon), bubble wrap, poly bags, thermal labels & custom packaging. Bulk orders, wholesale pricing, PAN India delivery.";
-const ogImage = "/new_boxzz_logo.png";
+const ogImage = "/boxzz_final_logo.png";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
