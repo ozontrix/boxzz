@@ -15,5 +15,6 @@ export { ShippingWeightCalculator } from "./ShippingWeightCalculator";
 export { SpecificationsTable } from "./SpecificationsTable";
 export { DeliveryInfo } from "./DeliveryInfo";
 export { RelatedProductsCarousel } from "./RelatedProductsCarousel";
+export { PWAProvider, usePWA } from "./PWAProvider";
 export { PWAInstallPrompt } from "./PWAInstallPrompt";
 export { ServiceWorkerRegistration } from "./ServiceWorkerRegistration";

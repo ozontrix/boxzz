@@ -1,114 +1,22 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
 import { X } from "lucide-react";
-
-interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[];
-  readonly userChoice: Promise<{
-    outcome: "accepted" | "dismissed";
-    platform: string;
-  }>;
-  prompt(): Promise<void>;
-}
-
-declare global {
-  interface WindowEventMap {
-    beforeinstallprompt: BeforeInstallPromptEvent;
-    appinstalled: Event;
-  }
-}
+import { usePWA } from "./PWAProvider";
 
 export function PWAInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [isIos, setIsIos] = useState(false);
-  const [showIosPrompt, setShowIosPrompt] = useState(false);
-
-  // Check if already installed (standalone mode)
-  useEffect(() => {
-    if (
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true
-    ) {
-      setIsInstalled(true);
-    }
-  }, []);
-
-  // Detect iOS Safari
-  useEffect(() => {
-    const ua = window.navigator.userAgent;
-    const isIosDevice = /iPad|iPhone|iPod/.test(ua);
-    const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua);
-    setIsIos(isIosDevice && isSafari);
-
-    // Show iOS prompt if on iOS Safari and not installed
-    if (isIosDevice && isSafari && !isInstalled) {
-      const dismissed = localStorage.getItem("boxzz-ios-pwa-dismissed");
-      if (!dismissed || Date.now() - parseInt(dismissed) > 7 * 24 * 60 * 60 * 1000) {
-        setShowIosPrompt(true);
-      }
-    }
-  }, [isInstalled]);
-
-  // Listen for beforeinstallprompt event
-  useEffect(() => {
-    const handler = (e: BeforeInstallPromptEvent) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      // Show prompt after a short delay
-      setTimeout(() => setShowPrompt(true), 3000);
-    };
-
-    window.addEventListener("beforeinstallprompt", handler);
-
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
-
-  // Listen for successful installation
-  useEffect(() => {
-    const handler = () => {
-      setIsInstalled(true);
-      setShowPrompt(false);
-      setDeferredPrompt(null);
-    };
-
-    window.addEventListener("appinstalled", handler);
-
-    return () => window.removeEventListener("appinstalled", handler);
-  }, []);
-
-  const handleInstall = useCallback(async () => {
-    if (!deferredPrompt) return;
-
-    deferredPrompt.prompt();
-
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      setIsInstalled(true);
-    }
-    setDeferredPrompt(null);
-    setShowPrompt(false);
-  }, [deferredPrompt]);
-
-  const handleDismiss = useCallback(() => {
-    setShowPrompt(false);
-    setDeferredPrompt(null);
-  }, []);
-
-  const handleDismissIos = useCallback(() => {
-    setShowIosPrompt(false);
-    localStorage.setItem("boxzz-ios-pwa-dismissed", Date.now().toString());
-  }, []);
-
-  // Don't show anything if already installed
-  if (isInstalled) return null;
+  const {
+    showAutoPrompt,
+    dismissAutoPrompt,
+    showIosPrompt,
+    dismissIosPrompt,
+    handleInstall,
+    isIos,
+  } = usePWA();
 
   return (
     <>
-      {/* Android/Chrome install prompt */}
-      {showPrompt && deferredPrompt && (
+      {/* Android/Chrome auto-prompt - only shows on home page once */}
+      {showAutoPrompt && (
         <div className="fixed bottom-20 sm:bottom-4 left-4 right-4 z-50 max-w-md mx-auto animate-in slide-in-from-bottom-4 duration-300">
           <div className="bg-white rounded-xl shadow-2xl border border-gray-200 p-4 flex items-center gap-3">
             <img
@@ -130,7 +38,7 @@ export function PWAInstallPrompt() {
                 Install
               </button>
               <button
-                onClick={handleDismiss}
+                onClick={dismissAutoPrompt}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
                 aria-label="Dismiss"
               >
@@ -141,7 +49,7 @@ export function PWAInstallPrompt() {
         </div>
       )}
 
-      {/* iOS Safari prompt */}
+      {/* iOS Safari prompt - only shows on home page once */}
       {showIosPrompt && isIos && (
         <div className="fixed bottom-20 sm:bottom-4 left-4 right-4 z-50 max-w-md mx-auto">
           <div className="bg-white rounded-xl shadow-2xl border border-gray-200 p-4">
@@ -155,7 +63,7 @@ export function PWAInstallPrompt() {
                 <p className="font-semibold text-gray-900 text-sm">Install Boxzz</p>
               </div>
               <button
-                onClick={handleDismissIos}
+                onClick={dismissIosPrompt}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
                 aria-label="Dismiss"
               >

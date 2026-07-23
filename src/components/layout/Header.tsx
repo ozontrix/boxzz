@@ -15,6 +15,7 @@ import {
   LogIn,
   UserPlus,
   LogOut,
+  Download,
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -25,10 +26,12 @@ import { CartIcon } from "../ui/CartIcon";
 import { WishlistIcon } from "../ui/WishlistIcon";
 import { SearchBar } from "../ui/SearchBar";
 import { useApp } from "@/store";
+import { usePWA } from "@/components/ui/PWAProvider";
 
 export function Header() {
   const { state, logout } = useApp();
   const { isAuthenticated, user, isLoading } = state.auth;
+  const { isInstallable, isInstalled, isIos, handleInstall } = usePWA();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -119,7 +122,7 @@ export function Header() {
               {isAuthenticated && user ? (
                 <Link
                   href="/account"
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
                 >
                   <User className="w-4 h-4" />
                   {user.name.split(" ")[0]}
@@ -128,7 +131,7 @@ export function Header() {
                 <>
                   <Link
                     href="/login"
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:text-primary rounded-lg hover:bg-orange-50 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:text-primary rounded-lg hover:bg-primary-50 transition-colors"
                   >
                     <LogIn className="w-4 h-4" />
                     Login
@@ -144,7 +147,19 @@ export function Header() {
               ) : null}
             </div>
 
-            {/* Desktop Icons */}
+          {/* Install App Button - Desktop */}
+          {!isInstalled && (
+            <button
+              onClick={handleInstall}
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
+              title="Install App"
+            >
+              <Download className="w-4 h-4" />
+              Install App
+            </button>
+          )}
+
+          {/* Desktop Icons */}
             <div className="hidden lg:flex items-center">
               <WishlistIcon />
               <CartIcon />
@@ -152,6 +167,17 @@ export function Header() {
 
             {/* Mobile Icons */}
             <div className="flex lg:hidden items-center">
+              {/* Install App Icon - Mobile */}
+              {!isInstalled && (
+                <button
+                  onClick={handleInstall}
+                  className="p-2 text-primary hover:text-primary-dark transition-colors"
+                  aria-label="Install App"
+                  title="Install App"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+              )}
               <WishlistIcon />
               <CartIcon />
             </div>
@@ -176,7 +202,7 @@ export function Header() {
         <nav className="hidden lg:flex items-center gap-0.5 border-t border-zinc-100 py-1.5 overflow-x-auto">
           <Link
             href="/"
-            className="px-3 py-1.5 text-sm font-medium text-zinc-600 hover:text-primary hover:bg-orange-50 rounded-lg transition-colors whitespace-nowrap shrink-0"
+            className="px-3 py-1.5 text-sm font-medium text-zinc-600 hover:text-primary hover:bg-primary-50 rounded-lg transition-colors whitespace-nowrap shrink-0"
           >
             Home
           </Link>
@@ -184,7 +210,7 @@ export function Header() {
             <Link
               key={cat.id}
               href={`/category/${cat.id}`}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap text-zinc-600 hover:text-primary hover:bg-orange-50 shrink-0"
+              className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap text-zinc-600 hover:text-primary hover:bg-primary-50 shrink-0"
             >
               {cat.icon && <span className="text-base">{cat.icon}</span>}
               <span>{cat.name}</span>
@@ -241,7 +267,7 @@ export function Header() {
                 <div className="px-4 py-3 border-b border-zinc-100">
                   {isAuthenticated && user ? (
                     <>
-                      <div className="flex items-center gap-2 px-2 py-2 mb-2 bg-orange-50 rounded-lg">
+                      <div className="flex items-center gap-2 px-2 py-2 mb-2 bg-primary-50 rounded-lg">
                         <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
                           {user.name.charAt(0).toUpperCase()}
                         </div>
