@@ -42,7 +42,7 @@ export function HeroBanner() {
 
   if (loading || banners.length === 0) {
     return (
-      <div className="relative w-full overflow-hidden bg-gradient-to-br from-orange-50 via-amber-100/50 to-white aspect-[3/2] sm:aspect-[2/1] lg:aspect-[21/9] flex items-center justify-center">
+      <div className="relative w-full overflow-hidden bg-gradient-to-br from-primary-50 via-amber-100/50 to-white aspect-[3/2] sm:aspect-[2/1] lg:aspect-[21/9] flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 rounded-full bg-zinc-200 animate-pulse mx-auto" />
         </div>
@@ -86,7 +86,7 @@ export function HeroBanner() {
                   <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight drop-shadow-lg">
                     {banner.title}
                   </h2>
-                  <p className="text-sm sm:text-base text-orange-100/90 mt-2 sm:mt-3 leading-relaxed max-w-md drop-shadow">
+                  <p className="text-sm sm:text-base text-primary-100/90 mt-2 sm:mt-3 leading-relaxed max-w-md drop-shadow">
                     {banner.subtitle}
                   </p>
                   <Link

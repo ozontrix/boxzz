@@ -44,10 +44,10 @@ import { updatePassword, sendPasswordResetEmail, updateProfile } from "@/lib/api
 type Tab = "orders" | "addresses" | "profile";
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode; step: number }> = {
-  "confirmed": { label: "Confirmed", color: "text-primary bg-orange-50 border-primary/20", icon: <CheckCircle className="w-4 h-4" />, step: 1 },
+  "confirmed": { label: "Confirmed", color: "text-primary bg-primary-50 border-primary/20", icon: <CheckCircle className="w-4 h-4" />, step: 1 },
   "in-production": { label: "In Production", color: "text-secondary bg-blue-50 border-secondary/20", icon: <Clock className="w-4 h-4" />, step: 2 },
   "shipped": { label: "Shipped", color: "text-accent bg-teal-50 border-accent/20", icon: <Package className="w-4 h-4" />, step: 3 },
-  "out-for-delivery": { label: "Out for Delivery", color: "text-primary bg-orange-50 border-primary/20", icon: <Truck className="w-4 h-4" />, step: 4 },
+  "out-for-delivery": { label: "Out for Delivery", color: "text-primary bg-primary-50 border-primary/20", icon: <Truck className="w-4 h-4" />, step: 4 },
   "delivered": { label: "Delivered", color: "text-success bg-green-50 border-success/20", icon: <CheckCircle className="w-4 h-4" />, step: 5 },
   "cancelled": { label: "Cancelled", color: "text-error bg-red-50 border-error/20", icon: <XCircle className="w-4 h-4" />, step: -1 },
   "returned": { label: "Returned", color: "text-warning bg-amber-50 border-warning/20", icon: <RotateCcw className="w-4 h-4" />, step: -2 },
@@ -255,7 +255,7 @@ function OrderCard({ order }: { order: Order }) {
 
               {/* View Details with status */}
               {!isTrackable && order.status !== "delivered" && order.status !== "cancelled" && order.status !== "returned" && (
-                <div className="bg-orange-50 rounded-lg p-3 text-xs text-zinc-600">
+                <div className="bg-primary-50 rounded-lg p-3 text-xs text-zinc-600">
                   <p className="font-medium text-zinc-700 mb-1">Order Status: {STATUS_CONFIG[order.status]?.label}</p>
                   <p>We are processing your order. You'll receive tracking details once it's shipped.</p>
                 </div>
@@ -286,7 +286,7 @@ function AddressCard({
       animate={{ opacity: 1, y: 0 }}
       className={cn(
         "bg-white rounded-xl border p-4 relative",
-        address.isDefault ? "border-primary/30 bg-orange-50/30" : "border-zinc-100"
+        address.isDefault ? "border-primary/30 bg-primary-50/30" : "border-zinc-100"
       )}
     >
       {/* Default Badge */}
@@ -329,7 +329,7 @@ function AddressCard({
         {!address.isDefault && (
           <button
             onClick={onSetDefault}
-            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium text-primary hover:bg-orange-50 rounded-lg transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium text-primary hover:bg-primary-50 rounded-lg transition-colors"
           >
             <Star className="w-3 h-3" />
             Set Default
@@ -723,7 +723,7 @@ export default function AccountPage() {
                         className={cn(
                           "px-3 py-1.5 text-xs font-medium rounded-lg border transition-all",
                           addressForm.label === label
-                            ? "border-primary bg-orange-50 text-primary"
+                            ? "border-primary bg-primary-50 text-primary"
                             : "border-zinc-200 text-zinc-600 hover:border-zinc-300"
                         )}
                       >
@@ -814,7 +814,7 @@ export default function AccountPage() {
                 {isAuthenticated && !showProfileForm && (
                   <button
                     onClick={() => setShowProfileForm(true)}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
                   >
                     <Pencil className="w-3 h-3" />
                     Edit

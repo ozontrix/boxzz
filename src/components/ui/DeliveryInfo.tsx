@@ -32,8 +32,8 @@ export function DeliveryInfo({
     {
       icon: Package,
       label: `${stockCount.toLocaleString()} units in stock`,
-      color: "text-orange-600",
-      bg: "bg-orange-50",
+      color: "text-primary-600",
+      bg: "bg-primary-50",
     },
   ];
 

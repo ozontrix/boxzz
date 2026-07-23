@@ -249,7 +249,7 @@ export default function CheckoutPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="mt-4 p-4 bg-orange-50 rounded-xl border border-orange-100"
+            className="mt-4 p-4 bg-primary-50 rounded-xl border border-primary-100"
           >
             <div className="flex items-center gap-2 mb-2">
               <Truck className="w-4 h-4 text-primary" />
@@ -287,7 +287,7 @@ export default function CheckoutPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6 sm:mb-8">
-          <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
             <Package className="w-5 h-5 text-primary" />
           </div>
           <div>
@@ -380,7 +380,7 @@ export default function CheckoutPage() {
                           className={cn(
                             "text-left p-3 rounded-xl border transition-all",
                             selectedSavedAddressId === addr.id
-                              ? "border-primary bg-orange-50"
+                              ? "border-primary bg-primary-50"
                               : "border-zinc-200 hover:border-zinc-300"
                           )}
                         >
@@ -550,7 +550,7 @@ export default function CheckoutPage() {
                         className={cn(
                           "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
                           selectedPayment === method.id
-                            ? "border-primary bg-orange-50"
+                            ? "border-primary bg-primary-50"
                             : "border-zinc-200 hover:border-zinc-300"
                         )}
                       >

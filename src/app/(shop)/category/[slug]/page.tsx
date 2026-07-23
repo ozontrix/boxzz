@@ -122,10 +122,10 @@ export default function CategoryPage({
       </div>
 
       {/* Category Header */}
-      <section className="bg-gradient-to-r from-orange-50 via-amber-50/50 to-white border-y border-zinc-100">
+      <section className="bg-gradient-to-r from-primary-50 via-amber-50/50 to-white border-y border-zinc-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
           <div className="flex items-start gap-4 sm:gap-6">
-            <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center text-3xl sm:text-4xl shrink-0">
+            <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-primary-100 to-amber-100 flex items-center justify-center text-3xl sm:text-4xl shrink-0">
               {category.icon}
             </div>
             <div className="flex-1">
@@ -136,7 +136,7 @@ export default function CategoryPage({
                 {category.description}
               </p>
               <div className="flex items-center gap-3 mt-3 sm:mt-4">
-                <span className="px-3 py-1 text-xs sm:text-sm font-medium text-primary bg-orange-50 rounded-lg">
+                <span className="px-3 py-1 text-xs sm:text-sm font-medium text-primary bg-primary-50 rounded-lg">
                   {products.length} Products
                 </span>
                 {category.nameHindi && (

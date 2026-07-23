@@ -66,7 +66,7 @@ export function QuantitySelector({
             type="number"
             value={quantity}
             onChange={handleInputChange}
-            className="w-14 h-10 text-center text-sm font-semibold text-zinc-800 border-x border-zinc-200 focus:outline-none focus:bg-orange-50/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-14 h-10 text-center text-sm font-semibold text-zinc-800 border-x border-zinc-200 focus:outline-none focus:bg-primary-50/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             min={min}
             max={max}
           />

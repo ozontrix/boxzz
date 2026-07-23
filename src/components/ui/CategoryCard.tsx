@@ -14,7 +14,7 @@ interface CategoryCardProps {
 }
 
 const gradientMap: Record<string, string> = {
-  "3-ply-boxes": "from-amber-500/90 to-orange-600/90",
+  "3-ply-boxes": "from-amber-500/90 to-primary-600/90",
   "3-ply-flap-boxes": "from-sky-500/90 to-blue-600/90",
   "3-ply-printed-flap-boxes": "from-fuchsia-500/90 to-purple-600/90",
   "3-ply-white-boxes": "from-slate-300/90 to-slate-400/90",

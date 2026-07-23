@@ -905,7 +905,7 @@ export default function AdminProductsPage() {
               {/* ═══ Section: Applications ═══ */}
               <div>
                 <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-orange-600 rounded-full" />
+                  <span className="w-1 h-5 bg-primary-600 rounded-full" />
                   Applications
                   <span className="text-[10px] font-normal text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">
                     Use cases for this product

@@ -47,7 +47,7 @@ const ITEMS = [
 
 export function MarqueeStrip() {
   return (
-    <div className="relative w-full overflow-hidden bg-gradient-to-r from-orange-50 via-amber-50/30 to-white border-y border-zinc-100 py-3 sm:py-3.5">
+    <div className="relative w-full overflow-hidden bg-gradient-to-r from-primary-50 via-amber-50/30 to-white border-y border-zinc-100 py-3 sm:py-3.5">
       {/* Shimmer overlay */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute inset-0 bg-[length:200%_100%] animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent" />

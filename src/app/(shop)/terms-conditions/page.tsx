@@ -45,10 +45,10 @@ export default function TermsConditionsPage() {
       </div>
 
       {/* Header */}
-      <section className="bg-gradient-to-r from-amber-50 via-orange-50/50 to-white border-y border-zinc-100">
+      <section className="bg-gradient-to-r from-amber-50 via-primary-50/50 to-white border-y border-zinc-100">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="flex items-start gap-4">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center text-3xl shrink-0">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-amber-100 to-primary-100 flex items-center justify-center text-3xl shrink-0">
               <Scale className="w-7 h-7 text-amber-600" />
             </div>
             <div>

@@ -25,7 +25,7 @@ const BANNER_RECOMMENDATIONS = {
     "Mobile: the left 60% of the image is most visible — place key elements there",
   ],
   bgColorOptions: [
-    { value: "from-orange-50 via-amber-100/50 to-white", label: "Warm Amber", preview: "bg-gradient-to-r from-orange-50 via-amber-100/50 to-white" },
+    { value: "from-primary-50 via-amber-100/50 to-white", label: "Warm Amber", preview: "bg-gradient-to-r from-primary-50 via-amber-100/50 to-white" },
     { value: "from-blue-50 via-indigo-100/50 to-white", label: "Cool Indigo", preview: "bg-gradient-to-r from-blue-50 via-indigo-100/50 to-white" },
     { value: "from-emerald-50 via-green-100/50 to-white", label: "Fresh Green", preview: "bg-gradient-to-r from-emerald-50 via-green-100/50 to-white" },
     { value: "from-rose-50 via-pink-100/50 to-white", label: "Soft Rose", preview: "bg-gradient-to-r from-rose-50 via-pink-100/50 to-white" },
@@ -53,7 +53,7 @@ export default function AdminBannersPage() {
     imagePreview: "",
     cta: "",
     cta_link: "",
-    bg_color: "from-orange-50 via-amber-100/50 to-white",
+    bg_color: "from-primary-50 via-amber-100/50 to-white",
     sort_order: 0,
   });
 
@@ -77,7 +77,7 @@ export default function AdminBannersPage() {
     setFormData({
       id: "", title: "", subtitle: "", image: "", imagePreview: "",
       cta: "", cta_link: "",
-      bg_color: "from-orange-50 via-amber-100/50 to-white", sort_order: 0,
+      bg_color: "from-primary-50 via-amber-100/50 to-white", sort_order: 0,
     });
     setShowForm(true);
     setShowGuidelines(false);

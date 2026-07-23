@@ -303,7 +303,7 @@ export const BANNERS: Banner[] = [
     image: "/slider1.png",
     cta: "View Price List",
     ctaLink: "/category/3-ply-boxes",
-    bgColor: "from-orange-50 via-amber-100/50 to-white",
+    bgColor: "from-primary-50 via-amber-100/50 to-white",
   },
   {
     id: "banner-2",

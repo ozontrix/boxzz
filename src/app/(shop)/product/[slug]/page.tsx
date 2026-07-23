@@ -239,7 +239,7 @@ export default function ProductDetailPage({
           <div className="flex flex-col gap-5">
             {/* Category & Status Badges */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-2.5 py-1 text-xs font-medium text-primary bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-200/50">
+              <span className="px-2.5 py-1 text-xs font-medium text-primary bg-gradient-to-r from-primary-50 to-amber-50 rounded-lg border border-primary-200/50">
                 {product.subcategory}
               </span>
               {product.isNew && (

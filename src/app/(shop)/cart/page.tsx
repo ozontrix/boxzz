@@ -340,7 +340,7 @@ export default function CartPage() {
                       </Link>
                       <Link
                         href="/signup"
-                        className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white text-primary text-sm font-semibold rounded-xl border border-primary hover:bg-orange-50 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white text-primary text-sm font-semibold rounded-xl border border-primary hover:bg-primary-50 transition-colors"
                       >
                         <UserPlus className="w-4 h-4" />
                         Create Account

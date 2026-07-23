@@ -68,13 +68,13 @@ export default function HomePage() {
 
       {/* ─── Categories Section ─── */}
       <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-14">
-        <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-bl from-orange-100/60 to-transparent rounded-full blur-3xl -z-10" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-bl from-primary-100/60 to-transparent rounded-full blur-3xl -z-10" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-amber-100/40 to-transparent rounded-full blur-3xl -z-10" />
 
         <div className="flex items-end justify-between mb-6 sm:mb-8">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-100 rounded-full text-xs font-semibold text-orange-600 mb-3">
-              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary-50 border border-primary-100 rounded-full text-xs font-semibold text-primary-600 mb-3">
+              <span className="w-1.5 h-1.5 bg-primary-500 rounded-full animate-pulse" />
               Categories
             </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-zinc-900">
@@ -262,13 +262,13 @@ export default function HomePage() {
             <h2 className="text-xl sm:text-2xl lg:text-4xl font-bold text-white leading-tight">
               Need Custom Packaging Solutions?
             </h2>
-            <p className="mt-3 sm:mt-4 text-sm sm:text-base text-orange-100 max-w-xl mx-auto">
+            <p className="mt-3 sm:mt-4 text-sm sm:text-base text-primary-100 max-w-xl mx-auto">
               Get a free quote for custom-sized boxes, branded packaging, or bulk orders. Our team will get back to you within 24 hours.
             </p>
             <div className="mt-5 sm:mt-7 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
               <Link
                 href="/custom-packaging"
-                className="px-6 sm:px-8 py-2.5 sm:py-3 bg-white text-primary font-semibold rounded-xl hover:bg-orange-50 transition-colors shadow-lg shadow-black/10 text-sm sm:text-base"
+                className="px-6 sm:px-8 py-2.5 sm:py-3 bg-white text-primary font-semibold rounded-xl hover:bg-primary-50 transition-colors shadow-lg shadow-black/10 text-sm sm:text-base"
               >
                 Get a Free Quote
               </Link>

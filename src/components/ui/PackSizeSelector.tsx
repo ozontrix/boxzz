@@ -59,7 +59,7 @@ export function PackSizeSelector({
                 isSelected
                   ? "border-primary bg-primary text-white shadow-md shadow-primary/20"
                   : variant.inStock
-                  ? "border-zinc-200 bg-white text-zinc-700 hover:border-primary/40 hover:bg-orange-50/30"
+                  ? "border-zinc-200 bg-white text-zinc-700 hover:border-primary/40 hover:bg-primary-50/30"
                   : "border-zinc-100 bg-zinc-50 text-zinc-300 cursor-not-allowed"
               )}
             >

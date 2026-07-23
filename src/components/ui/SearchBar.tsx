@@ -129,7 +129,7 @@ export function SearchBar() {
                       key={product.id}
                       href={`/product/${product.slug}`}
                       onClick={() => { setQuery(""); setIsOpen(false); }}
-                      className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-orange-50 transition-colors group"
+                      className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-primary-50 transition-colors group"
                     >
                       <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-base shrink-0">
                         {(product.category === "3-ply-boxes" || product.category === "5-ply-boxes" || product.category === "7-ply-boxes") && "📦"}
@@ -154,7 +154,7 @@ export function SearchBar() {
                 <Link
                   href={`/search?q=${encodeURIComponent(query)}`}
                   onClick={() => { setQuery(""); setIsOpen(false); }}
-                  className="flex items-center justify-center gap-1 px-3 py-2.5 bg-zinc-50 text-xs font-medium text-primary hover:bg-orange-50 transition-colors border-t border-zinc-100"
+                  className="flex items-center justify-center gap-1 px-3 py-2.5 bg-zinc-50 text-xs font-medium text-primary hover:bg-primary-50 transition-colors border-t border-zinc-100"
                 >
                   <Search className="w-3 h-3" />
                   View all results for "{query}"
@@ -178,7 +178,7 @@ export function SearchBar() {
                       <button
                         key={s.text}
                         onClick={() => handleSuggestion(s.text)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-zinc-600 bg-zinc-50 hover:bg-orange-50 hover:text-primary rounded-lg transition-colors"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-zinc-600 bg-zinc-50 hover:bg-primary-50 hover:text-primary rounded-lg transition-colors"
                       >
                         <span>{s.icon}</span>
                         {s.text}

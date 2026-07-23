@@ -111,7 +111,7 @@ export function Footer() {
               <h3 className="text-xl sm:text-2xl font-bold text-white">
                 🏭 Manufacturer Direct Pricing
               </h3>
-              <p className="text-sm text-orange-100 mt-1 max-w-lg">
+              <p className="text-sm text-primary-100 mt-1 max-w-lg">
                 Get the best bulk order prices delivered to your doorstep anywhere in India.
               </p>
             </div>
@@ -120,7 +120,7 @@ export function Footer() {
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
               <button
                 onClick={handleBulkOrder}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-primary font-bold rounded-xl hover:bg-orange-50 transition-all shadow-xl shadow-black/10 group"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-primary font-bold rounded-xl hover:bg-primary-50 transition-all shadow-xl shadow-black/10 group"
               >
                 <MessageCircle className="w-5 h-5 fill-primary text-primary" />
                 Bulk Order on WhatsApp

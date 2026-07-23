@@ -291,7 +291,7 @@ export default function CustomPackagingPage() {
   const labelClass = "block text-xs font-medium text-zinc-600 mb-1.5";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-orange-50/20 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-primary-50/20 to-white">
       {/* Header */}
       <div className="max-w-2xl mx-auto px-4 pt-6 sm:pt-8 pb-2">
         <div className="flex items-center gap-3 mb-6">
@@ -409,7 +409,7 @@ export default function CustomPackagingPage() {
                 <h2 className="text-base font-semibold text-zinc-900">Box Dimensions</h2>
               </div>
 
-              <div className="bg-orange-50 border border-orange-100 rounded-xl p-3.5 mb-5">
+              <div className="bg-primary-50 border border-primary-100 rounded-xl p-3.5 mb-5">
                 <p className="text-xs text-zinc-600">
                   <span className="font-medium text-primary">Tip:</span> Don't have exact dimensions? Give us your best estimate. 
                   We'll advise the perfect size for your product.
@@ -564,7 +564,7 @@ export default function CustomPackagingPage() {
                         className={cn(
                           "flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-center",
                           form.ply === opt.value
-                            ? "border-primary bg-orange-50"
+                            ? "border-primary bg-primary-50"
                             : "border-zinc-200 hover:border-zinc-300 bg-white"
                         )}
                       >
@@ -592,7 +592,7 @@ export default function CustomPackagingPage() {
                         className={cn(
                           "flex items-center gap-2 p-3 rounded-xl border-2 transition-all",
                           form.printing === opt.value
-                            ? "border-primary bg-orange-50"
+                            ? "border-primary bg-primary-50"
                             : "border-zinc-200 hover:border-zinc-300 bg-white"
                         )}
                       >
@@ -619,7 +619,7 @@ export default function CustomPackagingPage() {
                         className={cn(
                           "flex items-center gap-2 p-3 rounded-xl border-2 transition-all",
                           form.boxStyle === opt.value
-                            ? "border-primary bg-orange-50"
+                            ? "border-primary bg-primary-50"
                             : "border-zinc-200 hover:border-zinc-300 bg-white"
                         )}
                       >
@@ -646,7 +646,7 @@ export default function CustomPackagingPage() {
                         className={cn(
                           "px-3 py-2.5 rounded-xl border-2 text-xs font-medium transition-all text-center",
                           form.quantity === q.value
-                            ? "border-primary bg-orange-50 text-primary"
+                            ? "border-primary bg-primary-50 text-primary"
                             : "border-zinc-200 hover:border-zinc-300 text-zinc-600 bg-white"
                         )}
                       >

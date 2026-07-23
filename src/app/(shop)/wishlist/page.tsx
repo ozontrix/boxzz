@@ -48,7 +48,7 @@ export default function WishlistPage() {
           <motion.div
             animate={{ scale: items.length > 0 ? [1, 1.1, 1] : 1 }}
             transition={{ duration: 0.3 }}
-            className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center"
+            className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center"
           >
             <Heart className="w-5 h-5 text-primary" />
           </motion.div>

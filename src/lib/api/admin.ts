@@ -261,7 +261,7 @@ export async function adminCreateBanner(banner: {
       image: banner.image || "",
       cta: banner.cta || "",
       cta_link: banner.cta_link || "",
-      bg_color: banner.bg_color || "from-orange-50 via-amber-100/50 to-white",
+      bg_color: banner.bg_color || "from-primary-50 via-amber-100/50 to-white",
       is_active: banner.is_active ?? true,
       sort_order: banner.sort_order ?? 0,
     })

@@ -234,7 +234,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                         isSelected
                           ? "border-primary bg-primary text-white shadow-sm"
                           : variant.inStock
-                          ? "border-zinc-200 bg-white text-zinc-600 hover:border-primary/40 hover:bg-orange-50/30"
+                          ? "border-zinc-200 bg-white text-zinc-600 hover:border-primary/40 hover:bg-primary-50/30"
                           : "border-zinc-100 bg-zinc-50 text-zinc-300 cursor-not-allowed"
                       )}
                     >
@@ -261,7 +261,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           {/* Customization Tag */}
           {product.customizationAvailable && (
             <div className="flex items-center gap-1 mt-1.5">
-              <span className="px-1.5 py-0.5 text-[10px] font-medium text-primary bg-orange-50 rounded-md">
+              <span className="px-1.5 py-0.5 text-[10px] font-medium text-primary bg-primary-50 rounded-md">
                 Customizable
               </span>
             </div>
