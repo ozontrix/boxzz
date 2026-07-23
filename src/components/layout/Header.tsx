@@ -92,7 +92,7 @@ export function Header() {
           {/* Logo - 1099x306 native aspect ratio */}
           <Link href="/" className="flex items-center shrink-0">
             <Image
-              src="/boxzz-logo.png"
+              src="/new_boxzz_logo.png"
               alt="Boxzz Logo"
               width={1099}
               height={306}
@@ -247,7 +247,7 @@ export function Header() {
               <div className="flex items-center justify-between p-4 border-b border-zinc-100">
                 <div className="flex items-center">
                   <Image
-                    src="/boxzz-logo.png"
+                    src="/new_boxzz_logo.png"
                     alt="Boxzz Logo"
                     width={100}
                     height={32}

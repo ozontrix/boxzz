@@ -94,7 +94,7 @@ export default function SignupPage() {
         {/* Logo */}
         <Link href="/" className="flex items-center mb-6">
           <Image
-            src="/boxzz-logo.png"
+            src="/new_boxzz_logo.png"
             alt="Boxzz Logo"
             width={140}
             height={44}

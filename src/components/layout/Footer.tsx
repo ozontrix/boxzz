@@ -147,7 +147,7 @@ export function Footer() {
             <div className="col-span-4">
               <Link href="/" className="inline-block">
                 <Image
-                  src="/boxzz-logo.png"
+                  src="/new_boxzz_logo.png"
                   alt={`${SITE_NAME} Logo`}
                   width={160}
                   height={50}
@@ -342,7 +342,7 @@ export function Footer() {
             <div className="pb-6 border-b border-zinc-800 mb-4">
               <Link href="/" className="inline-block">
                 <Image
-                  src="/boxzz-logo.png"
+                  src="/new_boxzz_logo.png"
                   alt={`${SITE_NAME} Logo`}
                   width={140}
                   height={44}
