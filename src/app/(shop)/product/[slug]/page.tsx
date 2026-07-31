@@ -71,6 +71,7 @@ export default function ProductDetailPage({
   const [addedToCart, setAddedToCart] = useState(false);
   const [showMobileSticky, setShowMobileSticky] = useState(false);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const { addToCart, removeFromCart, updateCartQuantity, addToWishlist, removeFromWishlist, isInWishlist, isInCart, getCartQuantity, showToast } = useApp();
   const purchaseRef = useRef<HTMLDivElement>(null);
@@ -155,6 +156,33 @@ export default function ProductDetailPage({
     setSelectedVariant(variant);
     setQuantity(Math.max(product?.moq ?? 1, 1));
   }, [product]);
+
+  const handleShare = useCallback(async () => {
+    if (!product) return;
+    const url = `${window.location.origin}/product/${product.slug}`;
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        // Fallback for older browsers / non-secure contexts
+        const textarea = document.createElement("textarea");
+        textarea.value = url;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopied(true);
+      showToast("success", "Link Copied!", "Product link copied to clipboard.");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.error("Copy failed:", e);
+      showToast("error", "Copy Failed", "Could not copy the link. Please try again.");
+    }
+  }, [product, showToast]);
 
   if (isLoading) {
     return (
@@ -420,10 +448,41 @@ export default function ProductDetailPage({
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => showToast("info", "Link Copied!", "Product link copied to clipboard.")}
-                    className="flex items-center justify-center px-4 py-3.5 border border-zinc-200 rounded-xl text-zinc-400 hover:text-primary hover:bg-zinc-50 transition-all"
+                    onClick={handleShare}
+                    aria-label={copied ? "Link copied" : "Copy product link"}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 px-4 py-3.5 border rounded-xl transition-all",
+                      copied
+                        ? "border-success/30 text-success bg-success/5"
+                        : "border-zinc-200 text-zinc-400 hover:text-primary hover:bg-zinc-50"
+                    )}
                   >
-                    <Share2 className="w-5 h-5" />
+                    <AnimatePresence mode="wait" initial={false}>
+                      {copied ? (
+                        <motion.span
+                          key="check"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="flex items-center gap-1.5"
+                        >
+                          <Check className="w-5 h-5" />
+                          <span className="text-xs font-medium hidden sm:inline">Copied!</span>
+                        </motion.span>
+                      ) : (
+                        <motion.span
+                          key="share"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="flex items-center justify-center"
+                        >
+                          <Share2 className="w-5 h-5" />
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </motion.button>
                 </motion.div>
               )}
