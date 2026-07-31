@@ -34,12 +34,15 @@ import {
   Shield,
   RefreshCcw,
   ExternalLink,
+  MailWarning,
+  MailCheck,
 } from "lucide-react";
 import { cn, formatPrice, formatDate } from "@/lib/utils";
 import { INDIAN_STATES, CONTACT_INFO } from "@/lib/constants";
 import { useApp } from "@/store";
 import type { Address, Order, OrderStatus } from "@/types";
 import { updatePassword, sendPasswordResetEmail, updateProfile } from "@/lib/api/auth";
+import { resendVerificationEmail } from "@/lib/api/auth";
 
 type Tab = "orders" | "addresses" | "profile";
 
@@ -131,6 +134,9 @@ function OrderCard({ order }: { order: Order }) {
   const config = STATUS_CONFIG[order.status];
   const itemsCount = order.items.reduce((sum, i) => sum + i.quantity, 0);
   const isTrackable = order.status === "shipped" || order.status === "out-for-delivery";
+  const isPreShipment =
+    order.status === "confirmed" ||
+    order.status === "in-production";
 
   return (
     <motion.div
@@ -188,15 +194,26 @@ function OrderCard({ order }: { order: Order }) {
               {/* Items */}
               <div>
                 <p className="text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wider">Items</p>
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {order.items.map((item, idx) => (
-                    <div key={idx} className="flex items-start gap-2.5">
-                      <span className="text-base">{item.image}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-zinc-700 truncate">{item.name}</p>
-                        <p className="text-[11px] text-zinc-400">Qty: {item.quantity} × {formatPrice(item.price)}</p>
+                    <div key={idx} className="flex items-center gap-2.5">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-zinc-50 to-zinc-100 border border-zinc-100 overflow-hidden flex items-center justify-center shrink-0">
+                        {item.image && !item.image.startsWith("📦") ? (
+                          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xl">📦</span>
+                        )}
                       </div>
-                      <span className="text-xs font-medium text-zinc-700">{formatPrice(item.price * item.quantity)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-zinc-700 line-clamp-1">{item.name}</p>
+                        {item.variant && (
+                          <p className="text-[10px] text-zinc-400">Variant: {item.variant}</p>
+                        )}
+                        <p className="text-[11px] text-zinc-400">
+                          {formatPrice(item.price)} × {item.quantity} ={" "}
+                          <span className="font-medium text-zinc-600">{formatPrice(item.price * item.quantity)}</span>
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -216,12 +233,16 @@ function OrderCard({ order }: { order: Order }) {
 
               {/* Tracking & Payment */}
               <div className="grid grid-cols-2 gap-2">
-                {order.trackingId && (
-                  <div className="bg-zinc-50 rounded-lg p-2.5">
-                    <p className="text-[10px] font-medium text-zinc-400 uppercase">Tracking</p>
+                <div className="bg-zinc-50 rounded-lg p-2.5">
+                  <p className="text-[10px] font-medium text-zinc-400 uppercase">Tracking</p>
+                  {isTrackable && order.trackingId ? (
                     <p className="text-xs font-mono font-medium text-zinc-700 mt-0.5">{order.trackingId}</p>
-                  </div>
-                )}
+                  ) : isPreShipment ? (
+                    <p className="text-[11px] font-medium text-zinc-500 mt-0.5">Will be available after shipping</p>
+                  ) : (
+                    <p className="text-[11px] font-medium text-zinc-500 mt-0.5">—</p>
+                  )}
+                </div>
                 <div className="bg-zinc-50 rounded-lg p-2.5">
                   <p className="text-[10px] font-medium text-zinc-400 uppercase">Payment</p>
                   <p className="text-xs font-medium text-zinc-700 mt-0.5">{order.paymentMethod}</p>
@@ -251,6 +272,17 @@ function OrderCard({ order }: { order: Order }) {
                   Track Shipment ({order.trackingId})
                   <ExternalLink className="w-3 h-3" />
                 </motion.a>
+              )}
+
+              {/* Shipped soon notice - shown for pre-shipment orders */}
+              {isPreShipment && (
+                <div className="bg-primary-50 rounded-lg p-3 text-xs text-zinc-600 flex items-start gap-2">
+                  <Truck className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                  <p>
+                    <span className="font-medium text-zinc-700">Shipped soon!</span>{" "}
+                    Your order will be dispatched shortly. Tracking ID will be shared once shipped.
+                  </p>
+                </div>
               )}
 
               {/* View Details with status */}
@@ -378,6 +410,11 @@ export default function AccountPage() {
   const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+
+  // Email verification state
+  const [verificationResending, setVerificationResending] = useState(false);
+  const [verificationResent, setVerificationResent] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
 
   const orders = state.orders;
   const savedAddresses = state.savedAddresses;
@@ -533,6 +570,22 @@ export default function AccountPage() {
     }
   };
 
+  const handleResendVerification = async () => {
+    if (!user?.email) return;
+    setVerificationResending(true);
+    setVerificationError(null);
+    setVerificationResent(false);
+    const result = await resendVerificationEmail(user.email);
+    setVerificationResending(false);
+    if (result.sent) {
+      setVerificationResent(true);
+      showToast("success", "Verification Email Sent", `Verification email sent to ${user.email}`);
+    } else {
+      setVerificationError(result.error || "Failed to resend verification email.");
+      showToast("error", "Failed to Send", result.error || "Could not resend verification email.");
+    }
+  };
+
   // ─── Stats ───
   const orderCount = orders.length;
   const deliveredCount = orders.filter(o => o.status === "delivered").length;
@@ -547,6 +600,48 @@ export default function AccountPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50/30 to-white pb-20">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        {/* Email Verification Banner */}
+        {isAuthenticated && user && !user.emailConfirmed && (
+          <div className="mb-5 p-4 bg-warning/10 border border-warning/30 rounded-xl">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-warning/20 flex items-center justify-center shrink-0">
+                <MailWarning className="w-4 h-4 text-warning" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-warning">Email not confirmed</p>
+                <p className="text-xs text-zinc-600 mt-0.5">
+                  Please confirm your email address to access all features. We sent a verification
+                  link to <span className="font-medium text-zinc-800">{user.email}</span>.
+                </p>
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={handleResendVerification}
+                    disabled={verificationResending || verificationResent}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-warning text-white text-[11px] font-semibold rounded-lg hover:bg-warning/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {verificationResending ? (
+                      <RefreshCcw className="w-3 h-3 animate-spin" />
+                    ) : verificationResent ? (
+                      <MailCheck className="w-3 h-3" />
+                    ) : (
+                      <RefreshCcw className="w-3 h-3" />
+                    )}
+                    {verificationResending ? "Sending..." : verificationResent ? "Resent!" : "Resend verification email"}
+                  </button>
+                </div>
+                {verificationResent && (
+                  <p className="text-[11px] text-success font-medium mt-1.5">
+                    ✓ Verification email sent. Please check your inbox & spam folder.
+                  </p>
+                )}
+                {verificationError && (
+                  <p className="text-[11px] text-error font-medium mt-1.5">{verificationError}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white shadow-md">

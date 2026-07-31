@@ -1239,6 +1239,4 @@ export const INDIAN_STATES = [
 
 export const PAYMENT_METHODS = [
   { id: "cod", name: "Cash on Delivery", icon: "💵" },
-  { id: "bank-transfer", name: "Bank Transfer (NEFT/IMPS)", icon: "🏦" },
-  { id: "upi", name: "UPI / GPay / PhonePe", icon: "📱" },
 ];

@@ -117,6 +117,7 @@ export interface User {
   company?: string;
   gstin?: string;
   avatar?: string;
+  emailConfirmed?: boolean;
   addresses: Address[];
 }
 

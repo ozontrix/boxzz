@@ -9,7 +9,13 @@ import React, {
   ReactNode,
 } from "react";
 import type { CartItem, Product, Address, User, Order, OrderStatus } from "@/types";
-import { getCurrentSession, signIn as apiSignIn, signUp as apiSignUp, signOut as apiSignOut } from "@/lib/api/auth";
+import {
+  getCurrentSession,
+  signIn as apiSignIn,
+  signUp as apiSignUp,
+  signOut as apiSignOut,
+  resendVerificationEmail as apiResendVerificationEmail,
+} from "@/lib/api/auth";
 import { getShippingConfig, type ShippingConfig } from "@/lib/api/db";
 import {
   getUserAddresses,
@@ -28,6 +34,7 @@ interface CartState {
   shipping: number;
   gst: number;
   total: number;
+  config: ShippingConfig;
 }
 
 interface WishlistState {
@@ -62,6 +69,7 @@ type Action =
   | { type: "CART_REMOVE_ITEM"; payload: { productId: string } }
   | { type: "CART_UPDATE_QUANTITY"; payload: { productId: string; quantity: number } }
   | { type: "CART_CLEAR" }
+  | { type: "CART_SET_CONFIG"; payload: ShippingConfig }
   | { type: "WISHLIST_ADD_ITEM"; payload: Product }
   | { type: "WISHLIST_REMOVE_ITEM"; payload: { productId: string } }
   | { type: "AUTH_LOGIN"; payload: User }
@@ -130,7 +138,7 @@ function calculateCart(items: CartItem[], config?: ShippingConfig): Omit<CartSta
   const shipping = subtotal >= cfg.freeThreshold ? 0 : cfg.standardCharge;
   const gst = Math.round(subtotal * (cfg.gstRate || 0.12));
   const total = subtotal + shipping + gst;
-  return { subtotal, shipping, gst, total };
+  return { subtotal, shipping, gst, total, config: cfg };
 }
 
 // Check if window is defined (avoids SSR issues)
@@ -138,7 +146,8 @@ const isBrowser = typeof window !== "undefined";
 
 // Load cart from localStorage synchronously on module load
 function loadInitialCart(): CartState {
-  if (!isBrowser) return { items: [], subtotal: 0, shipping: 0, gst: 0, total: 0 };
+  if (!isBrowser)
+    return { items: [], subtotal: 0, shipping: 0, gst: 0, total: 0, config: getCachedConfig() };
   try {
     const stored = localStorage.getItem(CART_KEY);
     if (stored) {
@@ -151,7 +160,7 @@ function loadInitialCart(): CartState {
   } catch (e) {
     console.warn("Failed to load cart from localStorage:", e);
   }
-  return { items: [], subtotal: 0, shipping: 0, gst: 0, total: 0 };
+  return { items: [], subtotal: 0, shipping: 0, gst: 0, total: 0, config: getCachedConfig() };
 }
 
 // Load wishlist from localStorage synchronously on module load
@@ -231,8 +240,20 @@ function appReducer(state: AppState, action: Action): AppState {
     case "CART_CLEAR":
       return {
         ...state,
-        cart: { items: [], subtotal: 0, shipping: 0, gst: 0, total: 0 },
+        cart: {
+          items: [],
+          subtotal: 0,
+          shipping: 0,
+          gst: 0,
+          total: 0,
+          config: state.cart.config,
+        },
       };
+
+    case "CART_SET_CONFIG": {
+      const cartCalc = calculateCart(state.cart.items, action.payload);
+      return { ...state, cart: { items: state.cart.items, ...cartCalc } };
+    }
 
     case "WISHLIST_ADD_ITEM": {
       const exists = state.wishlist.items.find(
@@ -384,8 +405,9 @@ interface AppContextType {
   isInWishlist: (productId: string) => boolean;
   isInCart: (productId: string) => boolean;
   getCartQuantity: (productId: string) => number;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signUp: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; emailNotConfirmed?: boolean }>;
+  signUp: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string; requiresEmailConfirmation?: boolean }>;
+  resendVerificationEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   showToast: (type: Toast["type"], title: string, message?: string) => void;
   removeToast: (id: string) => void;
@@ -432,6 +454,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.warn("Failed to persist cart:", e);
     }
   }, [state.cart]);
+
+  // Fetch live shipping/GST config from DB on mount so
+  // cart & checkout always use the admin-configured values
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const config = await refreshShippingConfig();
+      if (!cancelled) {
+        dispatch({ type: "CART_SET_CONFIG", payload: config });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Sync wishlist to localStorage
   useEffect(() => {
@@ -574,12 +611,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       return { success: true };
     }
+    if (result.emailNotConfirmed) {
+      return {
+        success: false,
+        error: result.error || "Email not confirmed",
+        emailNotConfirmed: true,
+      };
+    }
     return { success: false, error: result.error || "Login failed" };
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, name: string) => {
     const result = await apiSignUp(email, password, name);
     if (result.user) {
+      // Only auto sign-in if the session exists (email confirmation disabled)
+      if (result.requiresEmailConfirmation || !result.user.emailConfirmed) {
+        dispatch({
+          type: "ADD_TOAST",
+          payload: generateToast("info", "Verify your email", `We sent a verification link to ${result.user.email}.`),
+        });
+        return {
+          success: true,
+          requiresEmailConfirmation: true,
+        };
+      }
       dispatch({ type: "AUTH_LOGIN", payload: result.user });
       dispatch({
         type: "ADD_TOAST",
@@ -590,13 +645,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { success: false, error: result.error || "Sign up failed" };
   }, []);
 
+  const resendVerificationEmail = useCallback(async (email: string) => {
+    const result = await apiResendVerificationEmail(email);
+    if (result.sent) {
+      dispatch({
+        type: "ADD_TOAST",
+        payload: generateToast("success", "Email Sent", `Verification email sent to ${email}.`),
+      });
+      return { success: true };
+    }
+    dispatch({
+      type: "ADD_TOAST",
+      payload: generateToast("error", "Failed to Send", result.error || "Could not resend verification email."),
+    });
+    return { success: false, error: result.error || "Failed to resend verification email" };
+  }, []);
+
   const logout = useCallback(async () => {
     await apiSignOut();
     dispatch({ type: "AUTH_LOGOUT" });
-    dispatch({
-      type: "ADD_TOAST",
-      payload: generateToast("info", "Signed out", "You have been signed out successfully."),
-    });
+    // Clear persisted store data so no stale auth state remains
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(CART_KEY);
+      localStorage.removeItem(SHIPPING_CONFIG_KEY);
+    } catch (e) {
+      console.warn("Failed to clear store:", e);
+    }
+    // Full page reload so every component (header, account, ui) reflects logged-out state
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
   }, []);
 
   const showToast = useCallback(
@@ -716,6 +795,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getCartQuantity,
     login,
     signUp,
+    resendVerificationEmail,
     logout,
     showToast,
     removeToast,

@@ -2,35 +2,78 @@ import { supabase } from "./supabase";
 import type { User } from "@/types";
 import { getUserAddresses } from "./db";
 
+const SITE_URL =
+  typeof window !== "undefined"
+    ? window.location.origin
+    : process.env.NEXT_PUBLIC_SITE_URL || "https://boxzz.in";
+
+/**
+ * Build a User object from a Supabase auth user
+ */
+function buildUser(authUser: any, fallbackEmail = ""): User {
+  return {
+    id: authUser.id,
+    name:
+      authUser.user_metadata?.name ||
+      authUser.user_metadata?.full_name ||
+      authUser.email?.split("@")[0] ||
+      "User",
+    email: authUser.email || fallbackEmail,
+    phone: authUser.phone ?? undefined,
+    emailConfirmed: !!authUser.email_confirmed_at,
+    addresses: [],
+  };
+}
+
 /**
  * Sign up with email & password
+ *
+ * When email confirmation is enabled, Supabase returns a user with
+ * `email_confirmed_at = null` and no session. In that case we return
+ * the user with `emailConfirmed: false` and a flag so the UI can show
+ * the "verify your email" screen.
  */
 export async function signUp(
   email: string,
   password: string,
   name: string
-): Promise<{ user: User | null; error?: string }> {
+): Promise<{
+  user: User | null;
+  error?: string;
+  requiresEmailConfirmation?: boolean;
+}> {
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { name, full_name: name },
+        emailRedirectTo: `${SITE_URL}/login`,
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      // "User already registered" — surface a friendly message
+      if (error.message?.toLowerCase().includes("already registered")) {
+        return {
+          user: null,
+          error: "An account with this email already exists. Please sign in instead.",
+        };
+      }
+      throw error;
+    }
+
     if (!data.user) return { user: null, error: "No user returned" };
 
+    const emailConfirmed = !!data.user.email_confirmed_at;
+    const requiresEmailConfirmation = !emailConfirmed && !data.session;
+
     const user: User = {
-      id: data.user.id,
-      name: data.user.user_metadata?.name || name || email.split("@")[0],
-      email: data.user.email || email,
-      phone: data.user.phone ?? undefined,
+      ...buildUser(data.user, email),
       addresses: [],
     };
 
-    return { user };
+    return { user, requiresEmailConfirmation };
   } catch (e: any) {
     console.error("signUp error:", e);
     return { user: null, error: e.message || "Sign up failed" };
@@ -39,28 +82,42 @@ export async function signUp(
 
 /**
  * Sign in with email & password
+ *
+ * If the email is not confirmed, we return a special error so the UI
+ * can show the "email not confirmed" banner and a resend button.
  */
 export async function signIn(
   email: string,
   password: string
-): Promise<{ user: User | null; error?: string }> {
+): Promise<{ user: User | null; error?: string; emailNotConfirmed?: boolean }> {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) throw error;
+    if (error) {
+      // Detect unconfirmed email from the error message
+      if (
+        error.message?.toLowerCase().includes("email not confirmed") ||
+        error.message?.toLowerCase().includes("not been confirmed")
+      ) {
+        return {
+          user: null,
+          error: "Please confirm your email address before signing in.",
+          emailNotConfirmed: true,
+        };
+      }
+      throw error;
+    }
+
     if (!data.user) return { user: null, error: "No user returned" };
 
     // Fetch addresses
     const addresses = await getUserAddresses(data.user.id);
 
     const user: User = {
-      id: data.user.id,
-      name: data.user.user_metadata?.name || data.user.email?.split("@")[0] || "User",
-      email: data.user.email || email,
-      phone: data.user.phone ?? undefined,
+      ...buildUser(data.user, email),
       addresses,
     };
 
@@ -68,6 +125,33 @@ export async function signIn(
   } catch (e: any) {
     console.error("signIn error:", e);
     return { user: null, error: e.message || "Sign in failed" };
+  }
+}
+
+/**
+ * Resend the email confirmation/verification email
+ */
+export async function resendVerificationEmail(
+  email: string
+): Promise<{ error?: string; sent?: boolean }> {
+  try {
+    // Supabase has no direct "resend verification" call on the anon key,
+    // so we use OTP sign-in which triggers a magic-link email to the user's
+    // address. This performs as a verification email. If the user's email
+    // is already confirmed this will just send a magic-link, which is fine.
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${SITE_URL}/login`,
+        shouldCreateUser: false,
+      },
+    });
+
+    if (error) throw error;
+    return { sent: true };
+  } catch (e: any) {
+    console.error("resendVerificationEmail error:", e);
+    return { error: e.message || "Failed to resend verification email" };
   }
 }
 
@@ -99,13 +183,7 @@ export async function getCurrentSession(): Promise<{
 
     const addresses = await getUserAddresses(data.session.user.id);
     const user: User = {
-      id: data.session.user.id,
-      name:
-        data.session.user.user_metadata?.name ||
-        data.session.user.email?.split("@")[0] ||
-        "User",
-      email: data.session.user.email || "",
-      phone: data.session.user.phone ?? undefined,
+      ...buildUser(data.session.user),
       addresses,
     };
 
@@ -127,13 +205,7 @@ export async function getCurrentUser(): Promise<User | null> {
 
     const addresses = await getUserAddresses(data.user.id);
     const user: User = {
-      id: data.user.id,
-      name:
-        data.user.user_metadata?.name ||
-        data.user.email?.split("@")[0] ||
-        "User",
-      email: data.user.email || "",
-      phone: data.user.phone ?? undefined,
+      ...buildUser(data.user),
       addresses,
     };
 
@@ -145,7 +217,7 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 /**
- * Update password
+ * Update password (used after clicking the reset link)
  */
 export async function updatePassword(
   newPassword: string
@@ -170,7 +242,7 @@ export async function sendPasswordResetEmail(
 ): Promise<{ error?: string }> {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/account`,
+      redirectTo: `${SITE_URL}/reset-password`,
     });
     if (error) throw error;
     return {};
@@ -200,12 +272,13 @@ export async function updateProfile(data: {
     if (error) throw error;
     if (!result.user) return { user: null, error: "No user returned" };
 
+    const addresses = result.user.id
+      ? await getUserAddresses(result.user.id).catch(() => [])
+      : [];
+
     const user: User = {
-      id: result.user.id,
-      name: result.user.user_metadata?.name || result.user.email?.split("@")[0] || "User",
-      email: result.user.email || "",
-      phone: result.user.phone ?? undefined,
-      addresses: [],
+      ...buildUser(result.user),
+      addresses,
     };
 
     return { user };
@@ -214,3 +287,4 @@ export async function updateProfile(data: {
     return { user: null, error: e.message || "Update failed" };
   }
 }
+

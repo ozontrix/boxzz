@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -73,7 +73,14 @@ export default function CheckoutPage() {
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const { items, subtotal, shipping, gst, total } = state.cart;
+  const { items, subtotal, shipping, gst, total, config } = state.cart;
+  // Defer live config-derived values until after hydration to prevent SSR mismatch
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const gstRatePercent = mounted ? Math.round((config.gstRate || 0.12) * 100) : 12;
+  const freeThreshold = mounted ? config.freeThreshold : 2499;
   const { savedAddresses, auth } = state;
   const isAuthenticated = auth.isAuthenticated;
 
@@ -156,6 +163,8 @@ export default function CheckoutPage() {
     };
 
     const userId = state.auth.user?.id || "guest";
+    const selectedPaymentMethod = PAYMENT_METHODS.find((m) => m.id === selectedPayment);
+    const paymentMethodLabel = selectedPaymentMethod?.name || "Cash on Delivery";
 
     const result = await createOrder(
       {
@@ -175,7 +184,7 @@ export default function CheckoutPage() {
         shipping,
         gst,
         shippingAddress,
-        paymentMethod: selectedPayment === "cod" ? "Cash on Delivery" : selectedPayment,
+        paymentMethod: paymentMethodLabel,
         notes: formData.notes || undefined,
       },
       userId
@@ -730,7 +739,7 @@ export default function CheckoutPage() {
                   )}
                 </div>
                 <div className="flex items-center justify-between text-zinc-600">
-                  <span>GST (12%)</span>
+                  <span>GST ({gstRatePercent}%)</span>
                   <span className="font-medium">{formatPrice(gst)}</span>
                 </div>
               </div>
@@ -749,7 +758,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-zinc-500">
                   <Truck className="w-4 h-4 text-primary" />
-                  Free shipping above ₹2499
+                  Free shipping above {formatPrice(freeThreshold)}
                 </div>
               </div>
             </div>

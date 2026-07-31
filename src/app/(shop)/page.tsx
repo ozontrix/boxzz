@@ -26,8 +26,18 @@ import {
 } from "@/lib/api/db";
 import { getFeaturedCategories } from "@/data";
 import type { Product, FeaturedCategory } from "@/types";
+import { useApp } from "@/store";
+import { formatPrice } from "@/lib/utils";
 
 export default function HomePage() {
+  const { state } = useApp();
+  // Defer live config until after hydration to prevent SSR mismatch
+  // (server renders fallback, client may have a cached DB value)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const freeThreshold = mounted ? (state.cart.config?.freeThreshold ?? 2499) : 2499;
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [bestSellerProducts, setBestSellerProducts] = useState<Product[]>([]);
   const [newProducts, setNewProducts] = useState<Product[]>([]);
@@ -209,7 +219,7 @@ export default function HomePage() {
               {
                 icon: Truck,
                 title: "PAN India Delivery",
-                desc: "Free shipping above ₹2,499",
+                desc: `Free shipping above ${formatPrice(freeThreshold)}`,
               },
               {
                 icon: ShieldCheck,

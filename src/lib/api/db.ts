@@ -452,6 +452,20 @@ export interface ShippingConfig {
 
 export async function getShippingConfig(): Promise<ShippingConfig> {
   try {
+    // 1) Admin-editable values from site_settings (Shipping & GST tab in admin portal)
+    const { data: siteData, error: siteError } = await supabase
+      .from("site_settings")
+      .select("key, value")
+      .in("key", ["free_shipping_threshold", "standard_shipping_charge", "gst_rate"]);
+
+    const siteMap: Record<string, string | undefined> = {};
+    if (!siteError && siteData) {
+      for (const row of siteData) {
+        siteMap[row.key] = row.value;
+      }
+    }
+
+    // 2) Shipping methods from shipping_settings table
     const { data, error } = await supabase
       .from("shipping_settings")
       .select("*")
@@ -461,11 +475,25 @@ export async function getShippingConfig(): Promise<ShippingConfig> {
 
     const settings = data ?? [];
     const standardMethod = settings.find((s: any) => s.type === "standard") || settings[0];
-    
+
+    // Prefer admin-edited site_settings values; fall back to shipping_settings, then legacy defaults
+    const standardCharge =
+      siteMap["standard_shipping_charge"] !== undefined && siteMap["standard_shipping_charge"] !== ""
+        ? Number(siteMap["standard_shipping_charge"])
+        : standardMethod?.charge ?? 149;
+    const freeThreshold =
+      siteMap["free_shipping_threshold"] !== undefined && siteMap["free_shipping_threshold"] !== ""
+        ? Number(siteMap["free_shipping_threshold"])
+        : standardMethod?.free_threshold ?? 2499;
+    const gstRate =
+      siteMap["gst_rate"] !== undefined && siteMap["gst_rate"] !== ""
+        ? Number(siteMap["gst_rate"])
+        : 0.12;
+
     return {
-      standardCharge: standardMethod?.charge ?? 149,
-      freeThreshold: standardMethod?.free_threshold ?? 2499,
-      gstRate: 0.12,
+      standardCharge,
+      freeThreshold,
+      gstRate,
       methods: settings.map((s: any) => ({
         id: s.id,
         label: s.label,
@@ -551,7 +579,7 @@ export async function createOrder(
         is_default: false,
       },
       estimated_delivery: estimatedDelivery,
-      tracking_id: `BXZ-TRK-${Date.now().toString().slice(-6)}`,
+      tracking_id: null, // Tracking ID is added by admin only when the order is shipped
     });
     if (orderError) throw orderError;
 

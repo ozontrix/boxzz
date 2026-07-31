@@ -343,60 +343,6 @@ export async function adminGetUsers() {
   return Array.from(userMap.values());
 }
 
-// ─── Shipping Settings ────────────────────────────────────────────
-export interface ShippingSetting {
-  id: string;
-  label: string;
-  type: "standard" | "express" | "free" | "international";
-  charge: number;
-  free_threshold: number | null;
-  min_days: number;
-  max_days: number;
-  is_active: boolean;
-  regions: string[];
-  description: string;
-  created_at: string;
-}
-
-export async function adminGetShippingSettings(): Promise<ShippingSetting[]> {
-  const { data, error } = await supabase
-    .from("shipping_settings")
-    .select("*")
-    .order("charge", { ascending: true });
-  if (error) throw error;
-  return data ?? [];
-}
-
-export async function adminCreateShippingSetting(
-  setting: Omit<ShippingSetting, "created_at">
-): Promise<void> {
-  const { error } = await supabase.from("shipping_settings").insert(setting);
-  if (error) throw error;
-}
-
-export async function adminUpdateShippingSetting(
-  id: string,
-  updates: Partial<Omit<ShippingSetting, "id" | "created_at">>
-): Promise<void> {
-  const { error } = await supabase.from("shipping_settings").update(updates).eq("id", id);
-  if (error) throw error;
-}
-
-export async function adminDeleteShippingSetting(id: string): Promise<void> {
-  const { error } = await supabase.from("shipping_settings").delete().eq("id", id);
-  if (error) throw error;
-}
-
-export async function adminGetContactInfo() {
-  const { data, error } = await supabase
-    .from("shipping_settings")
-    .select("*")
-    .eq("type", "contact")
-    .single();
-  if (error && error.code !== "PGRST116") throw error;
-  return data;
-}
-
 // ─── Site Settings ────────────────────────────────────────────────
 export async function adminGetSettings(): Promise<{ key: string; value: string; type: string; label: string; description: string; section: string }[]> {
   const { data, error } = await supabase.from("site_settings").select("*").order("section", { ascending: true }).order("key", { ascending: true });
@@ -413,6 +359,14 @@ export async function adminUpdateSettings(settings: { key: string; value: string
   for (const setting of settings) {
     const { error } = await supabase.from("site_settings").update({ value: setting.value, updated_at: new Date().toISOString() }).eq("key", setting.key);
     if (error) throw error;
+  }
+  // Invalidate the client-side shipping config cache so the cart/checkout
+  // pick up the latest admin-edited values on their next fetch
+  const shippingKeys = ["free_shipping_threshold", "standard_shipping_charge", "gst_rate"];
+  if (settings.some((s) => shippingKeys.includes(s.key)) && typeof window !== "undefined") {
+    try {
+      localStorage.removeItem("boxzz_shipping_config");
+    } catch {}
   }
 }
 

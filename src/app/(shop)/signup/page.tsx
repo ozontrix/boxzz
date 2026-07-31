@@ -5,7 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, UserPlus, ArrowLeft, AlertCircle, CheckCircle } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  UserPlus,
+  ArrowLeft,
+  AlertCircle,
+  CheckCircle,
+  MailCheck,
+  RefreshCcw,
+  MailWarning,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/store";
 
@@ -18,7 +28,7 @@ interface FormErrors {
 
 export default function SignupPage() {
   const router = useRouter();
-  const { signUp } = useApp();
+  const { signUp, resendVerificationEmail } = useApp();
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -28,6 +38,13 @@ export default function SignupPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
+  const [verifiedEmail, setVerifiedEmail] = useState("");
+
+  // Resend state
+  const [isResending, setIsResending] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
 
   const validate = useCallback((): FormErrors => {
     const errs: FormErrors = {};
@@ -48,6 +65,20 @@ export default function SignupPage() {
     return errs;
   }, [name, email, password, confirmPassword]);
 
+  const handleResend = async () => {
+    if (!verifiedEmail) return;
+    setIsResending(true);
+    setResendError(null);
+    setResendSent(false);
+    const result = await resendVerificationEmail(verifiedEmail);
+    setIsResending(false);
+    if (result.success) {
+      setResendSent(true);
+    } else {
+      setResendError(result.error || "Failed to resend verification email.");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationErrors = validate();
@@ -58,13 +89,18 @@ export default function SignupPage() {
     setIsSubmitting(true);
     setApiError(null);
 
-    const result = await signUp(email, password, name.trim());
+    const result = await signUp(email.trim(), password, name.trim());
 
     if (result.success) {
-      setIsSuccess(true);
-      setTimeout(() => {
-        router.push("/");
-      }, 1000);
+      if (result.requiresEmailConfirmation) {
+        setVerifiedEmail(email.trim());
+        setNeedsEmailVerification(true);
+      } else {
+        setIsSuccess(true);
+        setTimeout(() => {
+          router.push("/");
+        }, 1000);
+      }
     } else {
       setApiError(result.error || "Sign up failed. Please try again.");
       setIsSubmitting(false);
@@ -83,13 +119,15 @@ export default function SignupPage() {
         className="w-full max-w-sm"
       >
         {/* Back Button */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-primary mb-6 transition-colors group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to Home
-        </Link>
+        {!needsEmailVerification && (
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-primary mb-6 transition-colors group"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            Back to Home
+          </Link>
+        )}
 
         {/* Logo */}
         <Link href="/" className="flex items-center mb-6">
@@ -103,7 +141,73 @@ export default function SignupPage() {
         </Link>
 
         <AnimatePresence mode="wait">
-          {isSuccess ? (
+          {needsEmailVerification ? (
+            <motion.div
+              key="verify"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-4"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4"
+              >
+                <MailCheck className="w-8 h-8 text-primary" />
+              </motion.div>
+
+              <h1 className="text-xl font-bold text-zinc-900">Verify your email</h1>
+              <p className="text-sm text-zinc-500 mt-2 leading-relaxed">
+                We've sent a verification link to{" "}
+                <span className="font-semibold text-zinc-800">{verifiedEmail}</span>.
+                <br />
+                Please check your inbox (and spam folder) and click the link to confirm
+                your email address.
+              </p>
+
+              {/* Resend */}
+              <div className="mt-6 p-4 bg-zinc-50 rounded-xl border border-zinc-100">
+                <p className="text-xs text-zinc-600">Didn't receive the email?</p>
+                <button
+                  onClick={handleResend}
+                  disabled={isResending || resendSent}
+                  className="inline-flex items-center gap-1.5 mt-2 px-4 py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isResending ? (
+                    <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
+                  ) : resendSent ? (
+                    <MailCheck className="w-3.5 h-3.5" />
+                  ) : (
+                    <RefreshCcw className="w-3.5 h-3.5" />
+                  )}
+                  {isResending ? "Sending..." : resendSent ? "Resent!" : "Resend verification email"}
+                </button>
+
+                {resendSent && (
+                  <p className="text-[11px] text-success font-medium mt-2">
+                    ✓ Verification email sent. Please check your inbox & spam folder.
+                  </p>
+                )}
+                {resendError && (
+                  <p className="text-[11px] text-error font-medium mt-2 flex items-center gap-1 justify-center">
+                    <MailWarning className="w-3 h-3" />
+                    {resendError}
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-6 space-y-2">
+                <p className="text-xs text-zinc-500">Already verified?</p>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-zinc-200 text-zinc-700 text-xs font-semibold rounded-lg hover:bg-zinc-50 transition-colors"
+                >
+                  Sign in to your account
+                </Link>
+              </div>
+            </motion.div>
+          ) : isSuccess ? (
             <motion.div
               key="success"
               initial={{ opacity: 0, scale: 0.9 }}

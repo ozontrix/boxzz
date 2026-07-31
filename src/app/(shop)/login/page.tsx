@@ -5,7 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, LogIn, ArrowLeft, AlertCircle, CheckCircle } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  LogIn,
+  ArrowLeft,
+  AlertCircle,
+  CheckCircle,
+  MailWarning,
+  RefreshCcw,
+  MailCheck,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/store";
 
@@ -16,7 +26,7 @@ interface FormErrors {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useApp();
+  const { login, resendVerificationEmail } = useApp();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,6 +35,12 @@ export default function LoginPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  // Email not confirmed state
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
 
   const validate = useCallback((): FormErrors => {
     const errs: FormErrors = {};
@@ -41,6 +57,23 @@ export default function LoginPage() {
     return errs;
   }, [email, password]);
 
+  const handleResend = async () => {
+    if (!email.trim()) {
+      setResendError("Please enter your email address first.");
+      return;
+    }
+    setIsResending(true);
+    setResendError(null);
+    setResendSent(false);
+    const result = await resendVerificationEmail(email.trim());
+    setIsResending(false);
+    if (result.success) {
+      setResendSent(true);
+    } else {
+      setResendError(result.error || "Failed to resend verification email.");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationErrors = validate();
@@ -50,16 +83,26 @@ export default function LoginPage() {
 
     setIsSubmitting(true);
     setApiError(null);
+    setResendError(null);
+    setResendSent(false);
 
-    const result = await login(email, password);
+    const result = await login(email.trim(), password);
 
     if (result.success) {
+      setEmailNotConfirmed(false);
       setIsSuccess(true);
       setTimeout(() => {
         router.push("/");
       }, 800);
     } else {
-      setApiError(result.error || "Invalid email or password. Please try again.");
+      // Email not confirmed — show banner with resend button
+      if (result.emailNotConfirmed) {
+        setEmailNotConfirmed(true);
+        setApiError(null);
+      } else {
+        setEmailNotConfirmed(false);
+        setApiError(result.error || "Invalid email or password. Please try again.");
+      }
       setIsSubmitting(false);
     }
   };
@@ -121,6 +164,68 @@ export default function LoginPage() {
               <p className="text-sm text-zinc-500 mt-1">Sign in to access your orders, saved addresses & more</p>
 
               <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
+                {/* Email Not Confirmed Banner */}
+                <AnimatePresence>
+                  {emailNotConfirmed && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="p-3 bg-warning/10 border border-warning/30 rounded-xl">
+                        <div className="flex items-start gap-2">
+                          <MailWarning className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-warning">
+                              Email not confirmed
+                            </p>
+                            <p className="text-xs text-zinc-600 mt-0.5">
+                              Please confirm your email address before signing in. We sent a
+                              verification link to{" "}
+                              <span className="font-medium text-zinc-800">{email.trim()}</span>.
+                            </p>
+
+                            {/* Resend Button */}
+                            <div className="mt-2 flex items-center gap-2 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={handleResend}
+                                disabled={isResending || resendSent}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-warning text-white text-[11px] font-semibold rounded-lg hover:bg-warning/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                {isResending ? (
+                                  <RefreshCcw className="w-3 h-3 animate-spin" />
+                                ) : resendSent ? (
+                                  <MailCheck className="w-3 h-3" />
+                                ) : (
+                                  <RefreshCcw className="w-3 h-3" />
+                                )}
+                                {isResending
+                                  ? "Sending..."
+                                  : resendSent
+                                  ? "Resent!"
+                                  : "Resend verification email"}
+                              </button>
+                            </div>
+
+                            {resendSent && (
+                              <p className="text-[11px] text-success font-medium mt-1.5">
+                                ✓ Verification email sent. Please check your inbox & spam folder.
+                              </p>
+                            )}
+                            {resendError && (
+                              <p className="text-[11px] text-error font-medium mt-1.5">
+                                {resendError}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {apiError && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
@@ -142,6 +247,12 @@ export default function LoginPage() {
                       onChange={(e) => {
                         setEmail(e.target.value);
                         if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                        // Reset not-confirmed banner when typing
+                        if (emailNotConfirmed || resendSent || resendError) {
+                          setEmailNotConfirmed(false);
+                          setResendSent(false);
+                          setResendError(null);
+                        }
                       }}
                       className={cn(
                         "w-full h-11 px-4 text-sm border rounded-xl focus:outline-none focus:ring-2 transition-all",
@@ -236,12 +347,12 @@ export default function LoginPage() {
                       Remember me
                     </span>
                   </label>
-                  <button
-                    type="button"
+                  <Link
+                    href="/forgot-password"
                     className="text-xs font-medium text-primary hover:text-primary-dark transition-colors"
                   >
                     Forgot password?
-                  </button>
+                  </Link>
                 </div>
 
                 <motion.button

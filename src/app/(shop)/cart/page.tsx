@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -25,11 +25,19 @@ import {
   UserPlus,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
+import { FREE_SHIPPING_THRESHOLD } from "@/lib/constants";
 import { useApp } from "@/store";
 
 export default function CartPage() {
   const { state, removeFromCart, updateCartQuantity, clearCart, showToast } = useApp();
-  const { items, subtotal, shipping, gst, total } = state.cart;
+  const { items, subtotal, shipping, gst, total, config } = state.cart;
+  // Defer live config-derived values until after hydration to prevent SSR mismatch
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const gstRatePercent = mounted ? Math.round((config.gstRate || 0.12) * 100) : 12;
+  const freeThreshold = mounted ? (config.freeThreshold || FREE_SHIPPING_THRESHOLD) : FREE_SHIPPING_THRESHOLD;
   const [confirmClear, setConfirmClear] = useState(false);
 
   const handleQuantityChange = (productId: string, delta: number, currentQty: number) => {
@@ -49,7 +57,7 @@ export default function CartPage() {
 
   const itemCount = items.length;
   const hasFreeShipping = shipping === 0;
-  const savingsAmount = Math.round(subtotal * 0.12);
+  const savingsAmount = mounted ? Math.round(subtotal * (config.gstRate || 0.12)) : Math.round(subtotal * 0.12);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50/30 to-white">
@@ -263,7 +271,7 @@ export default function CartPage() {
                   <div className="flex items-center justify-between text-zinc-600">
                     <span className="flex items-center gap-1.5">
                       <Info className="w-3.5 h-3.5 text-zinc-400" />
-                      GST (12%)
+                      GST ({gstRatePercent}%)
                     </span>
                     <span className="font-medium">{formatPrice(gst)}</span>
                   </div>
@@ -274,17 +282,17 @@ export default function CartPage() {
                   <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
                     <div className="flex items-center gap-1.5 text-xs text-amber-700 mb-2">
                       <Truck className="w-3.5 h-3.5" />
-                      <span>Add {formatPrice(2499 - subtotal)} more for <strong>FREE shipping</strong></span>
+                      <span>Add {formatPrice(Math.max(freeThreshold - subtotal, 0))} more for <strong>FREE shipping</strong></span>
                     </div>
                     <div className="w-full h-1.5 bg-amber-200 rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
-                        animate={{ width: `${Math.min((subtotal / 2499) * 100, 100)}%` }}
+                        animate={{ width: `${Math.min((subtotal / freeThreshold) * 100, 100)}%` }}
                         className="h-full bg-amber-500 rounded-full"
                       />
                     </div>
                     <p className="text-[10px] text-amber-500 mt-1">
-                      {Math.round((subtotal / 2499) * 100)}% of free shipping goal reached
+                      {Math.round((subtotal / freeThreshold) * 100)}% of free shipping goal reached
                     </p>
                   </div>
                 )}
@@ -357,7 +365,7 @@ export default function CartPage() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-zinc-500">
                     <Truck className="w-4 h-4 text-primary" />
-                    <span>Free shipping on orders above {formatPrice(2499)}</span>
+                    <span>Free shipping on orders above {formatPrice(freeThreshold)}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-zinc-500">
                     <RotateCcw className="w-4 h-4 text-primary" />
