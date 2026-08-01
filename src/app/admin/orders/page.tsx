@@ -6,6 +6,7 @@ import {
   adminUpdateOrderStatus,
   adminUpdateOrderTracking,
   adminUpdateOrderEstimatedDelivery,
+  adminDeleteOrder,
 } from "@/lib/api/admin";
 import type { Order, OrderStatus } from "@/types";
 
@@ -118,6 +119,7 @@ export default function AdminOrdersPage() {
   const [savingDelivery, setSavingDelivery] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -150,6 +152,23 @@ export default function AdminOrdersPage() {
     setDeliveryDateInput(order.estimatedDelivery?.split("T")[0] || "");
     setCopiedId(false);
     setShowDetailModal(true);
+  };
+
+  const handleDeleteOrder = async (order: Order) => {
+    if (!window.confirm(`Delete order ${order.id}? This will permanently remove the order and its items.`)) return;
+    setDeletingId(order.id);
+    try {
+      await adminDeleteOrder(order.id);
+      setOrders((prev) => prev.filter((o) => o.id !== order.id));
+      if (selectedOrder && selectedOrder.id === order.id) {
+        setShowDetailModal(false);
+        setSelectedOrder(null);
+      }
+    } catch (err: any) {
+      alert("Error deleting order: " + (err.message || "Unknown error"));
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
@@ -385,7 +404,7 @@ export default function AdminOrdersPage() {
             </thead>
             <tbody>
               {filteredOrders.map((order) => (
-                <tr key={order.id} className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
+                <tr key={order.id} className="border-b border-zinc-50">
                   <td className="px-4 py-3">
                     <span className="text-sm font-mono font-medium text-blue-600">#{order.id.slice(-8)}</span>
                   </td>
@@ -411,12 +430,28 @@ export default function AdminOrdersPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleViewOrder(order)}
-                      className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                    >
-                      View
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => handleViewOrder(order)}
+                        className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => handleDeleteOrder(order)}
+                        disabled={deletingId === order.id}
+                        className="p-2 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                        title="Delete order"
+                      >
+                        {deletingId === order.id ? (
+                          <div className="w-4 h-4 border-2 border-red-200 border-t-red-600 rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

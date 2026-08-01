@@ -231,6 +231,11 @@ export async function adminUpdateOrderEstimatedDelivery(
   if (error) throw error;
 }
 
+export async function adminDeleteOrder(orderId: string): Promise<void> {
+  const { error } = await supabase.from("orders").delete().eq("id", orderId);
+  if (error) throw error;
+}
+
 // ─── Banners ─────────────────────────────────────────────────────
 export async function adminGetBanners(): Promise<Banner[]> {
   const { data, error } = await supabase
