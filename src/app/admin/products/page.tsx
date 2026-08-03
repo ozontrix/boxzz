@@ -10,6 +10,12 @@ import {
 } from "@/lib/api/admin";
 import { supabase } from "@/lib/api/supabase";
 import type { Product, Category, ProductVariant } from "@/types";
+import { slugify } from "@/lib/utils";
+
+// Generate a short SKU from a product name
+function generateSku(name: string): string {
+  return slugify(name);
+}
 
 // ─── Helper Icons ──────────────────────────────────────────────────
 function IconSearch() {
@@ -40,7 +46,6 @@ function IconX() {
 const emptyFormData = {
   id: "",
   name: "",
-  slug: "",
   description: "",
   short_description: "",
   price: 0,
@@ -128,7 +133,6 @@ export default function AdminProductsPage() {
     setFormData({
       id: product.id,
       name: product.name,
-      slug: product.slug,
       description: product.description,
       short_description: product.shortDescription,
       price: product.price,
@@ -167,7 +171,7 @@ export default function AdminProductsPage() {
       discount: formData.discount,
       stock: formData.stock_count,
       weight: 0,
-      sku: formData.slug || "",
+      sku: generateSku(formData.name) || "",
       inStock: true,
     };
     setFormData({ ...formData, variants: [...formData.variants, newVar] });
@@ -239,7 +243,6 @@ export default function AdminProductsPage() {
       if (editingProduct) {
         await adminUpdateProduct(editingProduct.id, {
           name: formData.name,
-          slug: formData.slug || formData.name.toLowerCase().replace(/\s+/g, "-"),
           description: formData.description,
           short_description: formData.short_description,
           price: formData.price,
@@ -262,12 +265,10 @@ export default function AdminProductsPage() {
           printing_options: printingOptions.length > 0 ? printingOptions : undefined,
         });
       } else {
-        const slug = formData.slug || formData.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
         const productId = `BXZ-${Date.now().toString().slice(-6)}`;
         await adminCreateProduct({
           id: productId,
           name: formData.name,
-          slug,
           description: formData.description,
           short_description: formData.short_description,
           price: formData.price,
@@ -509,16 +510,6 @@ export default function AdminProductsPage() {
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Slug</label>
-                    <input
-                      type="text"
-                      value={formData.slug}
-                      onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                      placeholder="Auto-generated if empty"
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     />
                   </div>
                   <div>

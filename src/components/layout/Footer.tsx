@@ -538,6 +538,21 @@ export function Footer() {
           </div>
         </div>
       </div>
+
+      {/* ─── MANAGED BY GUILD ─── */}
+      <div className="bg-zinc-950 border-t border-zinc-800/60">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-600">
+          <span className="tracking-wide">Managed by</span>
+          <Image
+            src="/guild-icon.PNG"
+            alt="Guild"
+            width={20}
+            height={20}
+            className="h-3.5 w-auto object-contain brightness-0 invert opacity-80"
+          />
+          <span className="font-medium text-zinc-400 tracking-wide">Guild</span>
+        </div>
+      </div>
     </footer>
   );
 }

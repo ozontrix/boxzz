@@ -84,7 +84,6 @@ export async function adminGetActiveProducts(): Promise<Product[]> {
 export async function adminCreateProduct(product: {
   id: string;
   name: string;
-  slug: string;
   description?: string;
   short_description?: string;
   price: number;
@@ -111,7 +110,6 @@ export async function adminCreateProduct(product: {
     .insert({
       id: product.id,
       name: product.name,
-      slug: product.slug,
       description: product.description || "",
       short_description: product.short_description || "",
       price: product.price,
@@ -147,7 +145,6 @@ export async function adminUpdateProduct(
   id: string,
   updates: Partial<{
     name: string;
-    slug: string;
     description: string;
     short_description: string;
     price: number;
