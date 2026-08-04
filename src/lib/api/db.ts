@@ -79,9 +79,13 @@ function mapOrder(raw: any): Order {
     productId: oi.product_id,
     name: oi.product_name,
     price: oi.price,
+    mrp: oi.mrp ?? oi.price,
     quantity: oi.quantity,
     image: oi.image ?? "📦",
     variant: oi.variant ?? undefined,
+    variantId: oi.variant_id ?? undefined,
+    variantLabel: oi.variant_label ?? undefined,
+    shippingWeight: oi.shipping_weight ?? undefined,
   })) ?? [];
 
   const address: Address = raw.shipping_address
@@ -543,7 +547,7 @@ export async function createOrder(
     paymentMethod: string;
     notes?: string;
   },
-  userId: string
+  userId?: string | null
 ): Promise<{ order: Order | null; error?: string }> {
   try {
     const orderId = `BXZ-${Date.now().toString().slice(-8)}-${String(
@@ -557,7 +561,7 @@ export async function createOrder(
     // Insert order
     const { error: orderError } = await supabase.from("orders").insert({
       id: orderId,
-      user_id: userId,
+      user_id: userId ?? null,
       status: "confirmed",
       total: orderData.total,
       subtotal: orderData.subtotal,
@@ -590,9 +594,13 @@ export async function createOrder(
         product_id: item.productId,
         product_name: item.name,
         price: item.price,
+        mrp: item.mrp ?? item.price,
         quantity: item.quantity,
         image: item.image,
         variant: item.variant ?? null,
+        variant_id: item.variantId ?? null,
+        variant_label: item.variantLabel ?? null,
+        shipping_weight: item.shippingWeight ?? null,
       }));
       const { error: itemsError } = await supabase
         .from("order_items")

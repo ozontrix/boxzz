@@ -8,7 +8,7 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import type { CartItem, Product, Address, User, Order, OrderStatus } from "@/types";
+import type { CartItem, Product, Address, User, Order, OrderStatus, ProductVariant } from "@/types";
 import {
   getCurrentSession,
   signIn as apiSignIn,
@@ -65,9 +65,9 @@ interface AppState {
 }
 
 type Action =
-  | { type: "CART_ADD_ITEM"; payload: { product: Product; quantity: number; variant?: string } }
-  | { type: "CART_REMOVE_ITEM"; payload: { productId: string } }
-  | { type: "CART_UPDATE_QUANTITY"; payload: { productId: string; quantity: number } }
+  | { type: "CART_ADD_ITEM"; payload: { product: Product; quantity: number; variant?: ProductVariant | null; variantName?: string } }
+  | { type: "CART_REMOVE_ITEM"; payload: { productId: string; variantId?: string } }
+  | { type: "CART_UPDATE_QUANTITY"; payload: { productId: string; variantId?: string; quantity: number } }
   | { type: "CART_CLEAR" }
   | { type: "CART_SET_CONFIG"; payload: ShippingConfig }
   | { type: "WISHLIST_ADD_ITEM"; payload: Product }
@@ -189,9 +189,12 @@ const initialState: AppState = {
 function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "CART_ADD_ITEM": {
-      const { product, quantity, variant } = action.payload;
+      const { product, quantity, variant, variantName } = action.payload;
       const existingIndex = state.cart.items.findIndex(
-        (item) => item.productId === product.id && item.variant === variant
+        (item) =>
+          item.productId === product.id &&
+          ((!variant && !item.variantId) ||
+            (variant && item.variantId === variant.id))
       );
 
       let newItems: CartItem[];
@@ -203,14 +206,20 @@ function appReducer(state: AppState, action: Action): AppState {
         );
       } else {
         const imageUrl = product.images?.[0] || "📦";
+        const variantPrice = variant?.price ?? product.price;
+        const variantMrp = variant?.mrp ?? product.originalPrice ?? variantPrice;
         const newItem: CartItem = {
           productId: product.id,
           name: product.name,
-          price: product.price,
-          mrp: product.originalPrice || product.price,
+          price: variantPrice,
+          mrp: variantMrp,
           quantity: Math.max(quantity, product.moq),
           image: imageUrl,
-          variant: variant,
+          variant: variant?.label ?? variantName ?? variant?.value ?? "",
+          variantId: variant?.id,
+          variantLabel: variant?.label ?? variantName ?? variant?.value ?? "",
+          sku: variant?.sku,
+          shippingWeight: variant?.weight,
         };
         newItems = [...state.cart.items, newItem];
       }
@@ -220,17 +229,22 @@ function appReducer(state: AppState, action: Action): AppState {
     }
 
     case "CART_REMOVE_ITEM": {
+      const { productId, variantId } = action.payload;
       const newItems = state.cart.items.filter(
-        (item) => item.productId !== action.payload.productId
+        (item) =>
+          item.productId !== productId ||
+          (variantId ? item.variantId !== variantId : false)
       );
       const cartCalc = calculateCart(newItems);
       return { ...state, cart: { items: newItems, ...cartCalc } };
     }
 
     case "CART_UPDATE_QUANTITY": {
+      const { productId, variantId, quantity } = action.payload;
       const newItems = state.cart.items.map((item) =>
-        item.productId === action.payload.productId
-          ? { ...item, quantity: Math.max(action.payload.quantity, 1) }
+        item.productId === productId &&
+        (!variantId || item.variantId === variantId)
+          ? { ...item, quantity: Math.max(quantity, 1) }
           : item
       );
       const cartCalc = calculateCart(newItems);
@@ -396,15 +410,15 @@ function appReducer(state: AppState, action: Action): AppState {
 interface AppContextType {
   state: AppState;
   dispatch: React.Dispatch<Action>;
-  addToCart: (product: Product, quantity?: number, variant?: string) => void;
-  removeFromCart: (productId: string) => void;
-  updateCartQuantity: (productId: string, quantity: number) => void;
+  addToCart: (product: Product, quantity?: number, variant?: ProductVariant | null, variantName?: string) => void;
+  removeFromCart: (productId: string, variantId?: string) => void;
+  updateCartQuantity: (productId: string, quantity: number, variantId?: string) => void;
   clearCart: () => void;
   addToWishlist: (product: Product) => void;
   removeFromWishlist: (productId: string) => void;
   isInWishlist: (productId: string) => boolean;
-  isInCart: (productId: string) => boolean;
-  getCartQuantity: (productId: string) => number;
+  isInCart: (productId: string, variantId?: string) => boolean;
+  getCartQuantity: (productId: string, variantId?: string) => number;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; emailNotConfirmed?: boolean }>;
   signUp: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string; requiresEmailConfirmation?: boolean }>;
   resendVerificationEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
@@ -520,10 +534,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [state.auth.user]);
 
   const addToCart = useCallback(
-    (product: Product, quantity = 1, variant?: string) => {
+    (product: Product, quantity = 1, variant?: ProductVariant | null, variantName?: string) => {
       dispatch({
         type: "CART_ADD_ITEM",
-        payload: { product, quantity, variant },
+        payload: { product, quantity, variant, variantName },
       });
       dispatch({
         type: "ADD_TOAST",
@@ -533,8 +547,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const removeFromCart = useCallback((productId: string) => {
-    dispatch({ type: "CART_REMOVE_ITEM", payload: { productId } });
+  const removeFromCart = useCallback((productId: string, variantId?: string) => {
+    dispatch({ type: "CART_REMOVE_ITEM", payload: { productId, variantId } });
     dispatch({
       type: "ADD_TOAST",
       payload: generateToast("info", "Removed from Cart", "Item has been removed from your cart."),
@@ -542,8 +556,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateCartQuantity = useCallback(
-    (productId: string, quantity: number) => {
-      dispatch({ type: "CART_UPDATE_QUANTITY", payload: { productId, quantity } });
+    (productId: string, quantity: number, variantId?: string) => {
+      dispatch({ type: "CART_UPDATE_QUANTITY", payload: { productId, variantId, quantity } });
     },
     []
   );
@@ -584,15 +598,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const isInCart = useCallback(
-    (productId: string) => {
-      return state.cart.items.some((item) => item.productId === productId);
+    (productId: string, variantId?: string) => {
+      return state.cart.items.some(
+        (item) =>
+          item.productId === productId &&
+          (!variantId || item.variantId === variantId)
+      );
     },
     [state.cart.items]
   );
 
   const getCartQuantity = useCallback(
-    (productId: string) => {
-      const item = state.cart.items.find((item) => item.productId === productId);
+    (productId: string, variantId?: string) => {
+      const item = state.cart.items.find(
+        (it) =>
+          it.productId === productId &&
+          (!variantId || it.variantId === variantId)
+      );
       return item?.quantity || 0;
     },
     [state.cart.items]

@@ -30,7 +30,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     : 0);
 
   const inWishlist = isInWishlist(product.id);
-  const inCart = isInCart(product.id);
+  const inCart = isInCart(product.id, selectedVariant?.id);
   const hasSlider = (product.images?.length ?? 0) >= 2;
   const hasVariants = product.variants && product.variants.length > 0;
 
@@ -51,7 +51,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     e.stopPropagation();
     if (inCart) return;
     setCartLoading(true);
-    addToCart(product, product.moq, selectedVariant?.value);
+    addToCart(product, product.moq, selectedVariant);
     setTimeout(() => setCartLoading(false), 300);
   };
 

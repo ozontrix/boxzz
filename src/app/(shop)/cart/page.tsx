@@ -21,8 +21,6 @@ import {
   Info,
   Percent,
   User,
-  LogIn,
-  UserPlus,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { FREE_SHIPPING_THRESHOLD } from "@/lib/constants";
@@ -40,12 +38,12 @@ export default function CartPage() {
   const freeThreshold = mounted ? (config.freeThreshold || FREE_SHIPPING_THRESHOLD) : FREE_SHIPPING_THRESHOLD;
   const [confirmClear, setConfirmClear] = useState(false);
 
-  const handleQuantityChange = (productId: string, delta: number, currentQty: number) => {
+  const handleQuantityChange = (productId: string, variantId: string | undefined, delta: number, currentQty: number) => {
     const newQty = currentQty + delta;
     if (newQty < 1) {
-      removeFromCart(productId);
+      removeFromCart(productId, variantId);
     } else {
-      updateCartQuantity(productId, newQty);
+      updateCartQuantity(productId, newQty, variantId);
     }
   };
 
@@ -71,7 +69,9 @@ export default function CartPage() {
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">Shopping Cart</h1>
               <p className="text-sm text-zinc-500">
-                {itemCount === 0
+                {!mounted
+                  ? "Loading cart…"
+                  : itemCount === 0
                   ? "Your cart is waiting to be filled"
                   : `${itemCount} ${itemCount === 1 ? "item" : "items"} • ${formatPrice(subtotal)}`}
               </p>
@@ -142,7 +142,7 @@ export default function CartPage() {
               <AnimatePresence>
                 {items.map((item, idx) => (
                   <motion.div
-                    key={item.productId}
+                    key={`${item.productId}-${item.variantId || "base"}`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -100, scale: 0.95 }}
@@ -171,7 +171,10 @@ export default function CartPage() {
                       >
                         {item.name}
                       </Link>
-                      {item.variant && (
+                      {item.variantLabel && (
+                        <p className="text-xs font-medium text-primary mt-0.5">{item.variantLabel}</p>
+                      )}
+                      {item.variant && !item.variantLabel && (
                         <p className="text-xs text-zinc-400 mt-0.5">Variant: {item.variant}</p>
                       )}
 
@@ -180,7 +183,7 @@ export default function CartPage() {
                           <div className="flex items-center bg-zinc-50 border border-zinc-200 rounded-xl overflow-hidden shadow-sm">
                             <motion.button
                               whileTap={{ scale: 0.9 }}
-                              onClick={() => handleQuantityChange(item.productId, -1, item.quantity)}
+                              onClick={() => handleQuantityChange(item.productId, item.variantId, -1, item.quantity)}
                               className="w-9 h-9 flex items-center justify-center text-zinc-500 hover:bg-white hover:text-primary transition-colors active:bg-zinc-100"
                             >
                               <Minus className="w-4 h-4" />
@@ -191,7 +194,7 @@ export default function CartPage() {
                               onChange={(e) => {
                                 const val = parseInt(e.target.value);
                                 if (!isNaN(val) && val >= 1) {
-                                  updateCartQuantity(item.productId, val);
+                                  updateCartQuantity(item.productId, val, item.variantId);
                                 }
                               }}
                               className="w-12 h-9 text-center text-sm font-semibold text-zinc-800 border-x border-zinc-200 focus:outline-none bg-white/80 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
@@ -199,7 +202,7 @@ export default function CartPage() {
                             />
                             <motion.button
                               whileTap={{ scale: 0.9 }}
-                              onClick={() => handleQuantityChange(item.productId, 1, item.quantity)}
+                              onClick={() => handleQuantityChange(item.productId, item.variantId, 1, item.quantity)}
                               className="w-9 h-9 flex items-center justify-center text-zinc-500 hover:bg-white hover:text-primary transition-colors active:bg-zinc-100"
                             >
                               <Plus className="w-4 h-4" />
@@ -222,7 +225,7 @@ export default function CartPage() {
                     {/* Remove */}
                     <motion.button
                       whileTap={{ scale: 0.9 }}
-                      onClick={() => removeFromCart(item.productId)}
+                      onClick={() => removeFromCart(item.productId, item.variantId)}
                       className="p-1.5 text-zinc-300 hover:text-error transition-colors shrink-0"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -320,7 +323,6 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                {state.auth.isAuthenticated ? (
                   <Link
                     href="/checkout"
                     className="mt-4 w-full flex items-center justify-center gap-2 px-5 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-colors shadow-lg shadow-primary/25 text-sm group"
@@ -329,33 +331,20 @@ export default function CartPage() {
                     Proceed to Checkout
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </Link>
-                ) : (
-                  <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
-                    <div className="flex items-center gap-2 mb-2">
-                      <User className="w-4 h-4 text-amber-600" />
-                      <span className="text-sm font-semibold text-amber-800">Login to continue</span>
-                    </div>
-                    <p className="text-xs text-amber-700 mb-3">
-                      Please sign in or create an account to proceed with checkout.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Link
-                        href="/login"
-                        className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-colors shadow-md shadow-primary/20"
-                      >
-                        <LogIn className="w-4 h-4" />
-                        Sign In
+
+                  {!state.auth.isAuthenticated && (
+                    <div className="mt-2.5 flex items-center justify-center gap-1.5 text-xs text-zinc-500">
+                      <User className="w-3.5 h-3.5 text-zinc-400" />
+                      <span>Guest checkout — no account needed.</span>
+                      <Link href="/login" className="font-medium text-primary hover:text-primary-dark transition-colors">
+                        Sign in
                       </Link>
-                      <Link
-                        href="/signup"
-                        className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white text-primary text-sm font-semibold rounded-xl border border-primary hover:bg-primary-50 transition-colors"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        Create Account
+                      <span className="text-zinc-300">/</span>
+                      <Link href="/signup" className="font-medium text-primary hover:text-primary-dark transition-colors">
+                        Create account
                       </Link>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Trust badges */}
                 <div className="mt-4 pt-4 border-t border-zinc-100 space-y-2">

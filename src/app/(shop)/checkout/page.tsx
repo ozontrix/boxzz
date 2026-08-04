@@ -19,6 +19,7 @@ import {
   Building2,
   Star,
   Plus,
+  User,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { INDIAN_STATES, PAYMENT_METHODS } from "@/lib/constants";
@@ -162,7 +163,7 @@ export default function CheckoutPage() {
       isDefault: false,
     };
 
-    const userId = state.auth.user?.id || "guest";
+    const userId = state.auth.user?.id ?? null;
     const selectedPaymentMethod = PAYMENT_METHODS.find((m) => m.id === selectedPayment);
     const paymentMethodLabel = selectedPaymentMethod?.name || "Cash on Delivery";
 
@@ -176,6 +177,7 @@ export default function CheckoutPage() {
           quantity: item.quantity,
           image: item.image,
           variant: item.variant,
+          variantId: item.variantId,
           variantLabel: item.variantLabel,
           shippingWeight: item.shippingWeight,
         })),
@@ -279,12 +281,21 @@ export default function CheckoutPage() {
             >
               Continue Shopping
             </Link>
-            <Link
-              href="/account"
-              className="px-6 py-2.5 border border-zinc-200 text-zinc-700 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors"
-            >
-              View Orders
-            </Link>
+            {isAuthenticated ? (
+              <Link
+                href="/account"
+                className="px-6 py-2.5 border border-zinc-200 text-zinc-700 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors"
+              >
+                View Orders
+              </Link>
+            ) : (
+              <Link
+                href="/signup"
+                className="px-6 py-2.5 border border-zinc-200 text-zinc-700 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors"
+              >
+                Create Account to Track
+              </Link>
+            )}
           </div>
         </motion.div>
       </div>
@@ -308,6 +319,24 @@ export default function CheckoutPage() {
             </p>
           </div>
         </div>
+
+        {/* Guest Checkout Banner */}
+        {!isAuthenticated && !orderPlaced && (
+          <div className="mb-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-xs text-zinc-600 shadow-sm">
+            <User className="w-3.5 h-3.5 text-zinc-400" />
+            <span>
+              Checking out as guest — no account needed.{" "}
+              <Link href="/login" className="font-medium text-primary hover:text-primary-dark transition-colors">
+                Sign in
+              </Link>{" "}
+              or{" "}
+              <Link href="/signup" className="font-medium text-primary hover:text-primary-dark transition-colors">
+                Create account
+              </Link>{" "}
+              to save your address and track orders.
+            </span>
+          </div>
+        )}
 
         {/* Progress Steps */}
         <div className="flex items-center gap-2 sm:gap-4 mb-6 sm:mb-8">

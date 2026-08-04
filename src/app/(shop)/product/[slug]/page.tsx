@@ -132,16 +132,16 @@ export default function ProductDetailPage({
   const handleAddToCart = useCallback(() => {
     if (!product) return;
     const imageUrl = product.images?.[0] || "📦";
-    addToCart(product, quantity, selectedVariant?.value);
+    addToCart(product, quantity, selectedVariant);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 1500);
   }, [product, quantity, selectedVariant, addToCart]);
 
   const handleRemoveFromCart = useCallback(() => {
     if (!product) return;
-    removeFromCart(product.id);
+    removeFromCart(product.id, selectedVariant?.id);
     setQuantity(product.moq);
-  }, [product, removeFromCart]);
+  }, [product, selectedVariant, removeFromCart]);
 
   const handleWishlist = useCallback(() => {
     if (!product) return;
@@ -198,8 +198,8 @@ export default function ProductDetailPage({
   if (!product) return null;
 
   const inWishlist = isInWishlist(product.id);
-  const inCart = isInCart(product.id);
-  const cartQty = getCartQuantity(product.id);
+  const inCart = isInCart(product.id, selectedVariant?.id);
+  const cartQty = getCartQuantity(product.id, selectedVariant?.id);
   const categoryName = product.category
     .split("-")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
@@ -733,7 +733,7 @@ export default function ProductDetailPage({
                 {inCart ? (
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() => updateCartQuantity(product.id, Math.max(product.moq, cartQty - 1))}
+                      onClick={() => updateCartQuantity(product.id, Math.max(product.moq, cartQty - 1), selectedVariant?.id)}
                       className="w-9 h-9 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-600"
                     >
                       <RotateCcw className="w-4 h-4" />

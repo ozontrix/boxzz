@@ -93,7 +93,9 @@ export interface CartItem {
   quantity: number;
   image: string;
   variant?: string;
+  variantId?: string;
   variantLabel?: string;
+  sku?: string;
   shippingWeight?: number;
   customization?: string;
 }

@@ -1,21 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   adminGetProducts,
-  adminCreateProduct,
-  adminUpdateProduct,
   adminDeleteProduct,
   adminGetCategories,
 } from "@/lib/api/admin";
-import { supabase } from "@/lib/api/supabase";
-import type { Product, Category, ProductVariant } from "@/types";
-import { slugify } from "@/lib/utils";
-
-// Generate a short SKU from a product name
-function generateSku(name: string): string {
-  return slugify(name);
-}
+import type { Product, Category } from "@/types";
+import { ProductFormModal } from "@/components/admin/ProductFormModal";
 
 // ─── Helper Icons ──────────────────────────────────────────────────
 function IconSearch() {
@@ -34,41 +26,6 @@ function IconPlus() {
   );
 }
 
-function IconX() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
-
-// ─── Initial form state ────────────────────────────────────────────
-const emptyFormData = {
-  id: "",
-  name: "",
-  description: "",
-  short_description: "",
-  price: 0,
-  original_price: 0,
-  category: "",
-  subcategory: "",
-  stock_count: 0,
-  moq: 1,
-  unit: "piece" as string,
-  in_stock: true,
-  is_featured: false,
-  is_best_seller: false,
-  is_new: false,
-  discount: 0,
-  customization_available: false,
-  features: "",
-  images: "",
-  applications: "",
-  printing_options: "",
-  specifications: [] as { key: string; value: string }[],
-  variants: [] as ProductVariant[],
-};
-
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -79,8 +36,7 @@ export default function AdminProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({ ...emptyFormData });
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -115,190 +71,14 @@ export default function AdminProductsPage() {
     });
   }, [products, search, categoryFilter, stockFilter]);
 
-  // ─── Form helpers ────────────────────────────────────────────────
-  const resetForm = () => setFormData({ ...emptyFormData });
-
   const openCreate = () => {
     setEditingProduct(null);
-    resetForm();
-    setFormData((prev) => ({
-      ...prev,
-      category: categories[0]?.id || "",
-    }));
     setShowForm(true);
   };
 
   const openEdit = (product: Product) => {
     setEditingProduct(product);
-    setFormData({
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      short_description: product.shortDescription,
-      price: product.price,
-      original_price: product.originalPrice || 0,
-      category: product.category,
-      subcategory: product.subcategory,
-      stock_count: product.stockCount,
-      moq: product.moq,
-      unit: product.unit,
-      in_stock: product.inStock,
-      is_featured: product.isFeatured || false,
-      is_best_seller: product.isBestSeller || false,
-      is_new: product.isNew || false,
-      discount: product.discount || 0,
-      customization_available: product.customizationAvailable || false,
-      features: (product.features || []).join(", "),
-      images: (product.images || []).join(", "),
-      applications: (product.applications || []).join(", "),
-      printing_options: (product.printingOptions || []).join(", "),
-      specifications: product.specifications
-        ? Object.entries(product.specifications).map(([key, value]) => ({ key, value }))
-        : [],
-      variants: product.variants || [],
-    });
     setShowForm(true);
-  };
-
-  // ─── Variant helpers ─────────────────────────────────────────────
-  const addVariant = () => {
-    const newVar: ProductVariant = {
-      id: `var-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      label: "",
-      value: "",
-      price: formData.price,
-      mrp: formData.original_price || formData.price,
-      discount: formData.discount,
-      stock: formData.stock_count,
-      weight: 0,
-      sku: generateSku(formData.name) || "",
-      inStock: true,
-    };
-    setFormData({ ...formData, variants: [...formData.variants, newVar] });
-  };
-
-  const updateVariant = (idx: number, field: keyof ProductVariant, value: any) => {
-    const variants = [...formData.variants];
-    variants[idx] = { ...variants[idx], [field]: value };
-    // Auto-calculate discount if price and mrp change
-    if (field === "price" || field === "mrp") {
-      const v = variants[idx];
-      if (v.mrp > v.price) {
-        v.discount = Math.round(((v.mrp - v.price) / v.mrp) * 100);
-      } else {
-        v.discount = 0;
-      }
-    }
-    setFormData({ ...formData, variants });
-  };
-
-  const removeVariant = (idx: number) => {
-    setFormData({
-      ...formData,
-      variants: formData.variants.filter((_, i) => i !== idx),
-    });
-  };
-
-  // ─── Specification helpers ───────────────────────────────────────
-  const addSpecification = () => {
-    setFormData({
-      ...formData,
-      specifications: [...formData.specifications, { key: "", value: "" }],
-    });
-  };
-
-  const updateSpecification = (idx: number, field: "key" | "value", value: string) => {
-    const specs = [...formData.specifications];
-    specs[idx] = { ...specs[idx], [field]: value };
-    setFormData({ ...formData, specifications: specs });
-  };
-
-  const removeSpecification = (idx: number) => {
-    setFormData({
-      ...formData,
-      specifications: formData.specifications.filter((_, i) => i !== idx),
-    });
-  };
-
-  // ─── Save ────────────────────────────────────────────────────────
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const features = formData.features.split(",").map((f) => f.trim()).filter(Boolean);
-      const images = formData.images.split(",").map((img) => img.trim()).filter(Boolean);
-      const applications = formData.applications.split(",").map((a) => a.trim()).filter(Boolean);
-      const printingOptions = formData.printing_options.split(",").map((p) => p.trim()).filter(Boolean);
-      
-      // Build specifications object from key-value pairs
-      const specifications: Record<string, string> = {};
-      formData.specifications.forEach((spec) => {
-        if (spec.key.trim() && spec.value.trim()) {
-          specifications[spec.key.trim()] = spec.value.trim();
-        }
-      });
-
-      const variants = formData.variants.filter((v) => v.label.trim());
-
-      if (editingProduct) {
-        await adminUpdateProduct(editingProduct.id, {
-          name: formData.name,
-          description: formData.description,
-          short_description: formData.short_description,
-          price: formData.price,
-          original_price: formData.original_price || undefined,
-          category: formData.category,
-          subcategory: formData.subcategory,
-          stock_count: formData.stock_count,
-          moq: formData.moq,
-          unit: formData.unit,
-          in_stock: formData.in_stock,
-          is_featured: formData.is_featured,
-          is_best_seller: formData.is_best_seller,
-          is_new: formData.is_new,
-          discount: formData.discount || undefined,
-          customization_available: formData.customization_available,
-          features,
-          images,
-          variants: variants.length > 0 ? variants : undefined,
-          specifications: Object.keys(specifications).length > 0 ? specifications : undefined,
-          printing_options: printingOptions.length > 0 ? printingOptions : undefined,
-        });
-      } else {
-        const productId = `BXZ-${Date.now().toString().slice(-6)}`;
-        await adminCreateProduct({
-          id: productId,
-          name: formData.name,
-          description: formData.description,
-          short_description: formData.short_description,
-          price: formData.price,
-          original_price: formData.original_price || undefined,
-          category: formData.category,
-          subcategory: formData.subcategory,
-          stock_count: formData.stock_count,
-          moq: formData.moq,
-          unit: formData.unit,
-          in_stock: formData.in_stock,
-          is_featured: formData.is_featured,
-          is_best_seller: formData.is_best_seller,
-          is_new: formData.is_new,
-          discount: formData.discount || undefined,
-          customization_available: formData.customization_available,
-          features,
-          images,
-          variants: variants.length > 0 ? variants : undefined,
-          specifications: Object.keys(specifications).length > 0 ? specifications : undefined,
-          printing_options: printingOptions.length > 0 ? printingOptions : undefined,
-        });
-      }
-      setShowForm(false);
-      setEditingProduct(null);
-      await loadData();
-    } catch (err: any) {
-      alert("Error: " + err.message);
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleDelete = async (id: string) => {
@@ -308,6 +88,29 @@ export default function AdminProductsPage() {
       await loadData();
     } catch (err: any) {
       alert("Error: " + err.message);
+    }
+  };
+
+  const handleShare = async (product: Product) => {
+    const slug = product.slug || product.id;
+    const url = `${window.location.origin}/product/${slug}`;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = url;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopiedId(product.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (e) {
+      console.error("Copy failed:", e);
     }
   };
 
@@ -374,734 +177,249 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
-      {/* Products Table */}
-      <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-zinc-100">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Product</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Category</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Price</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Stock</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Variants</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProducts.map((product) => (
-                <tr key={product.id} className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-lg shrink-0">
-                        {product.images?.[0] ? (
-                          <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover rounded-xl" />
-                        ) : (
-                          "📦"
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-zinc-800 max-w-[250px] truncate">{product.name}</p>
-                        <p className="text-xs text-zinc-400">ID: {product.id}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-zinc-600 capitalize">
-                      {categories.find((c) => c.id === product.category)?.name || product.category.replace(/-/g, " ")}
-                    </span>
-                    {product.subcategory && (
-                      <p className="text-xs text-zinc-400 mt-0.5">{product.subcategory}</p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className="text-sm font-medium text-zinc-800">₹{product.price.toLocaleString()}</span>
-                    {product.originalPrice && (
-                      <span className="text-xs text-zinc-400 line-through ml-1">₹{product.originalPrice}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className="text-sm text-zinc-600">{product.stockCount.toLocaleString()}</span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {product.variants && product.variants.length > 0 ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700">
-                        {product.variants.length} sizes
-                      </span>
-                    ) : (
-                      <span className="text-xs text-zinc-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold ${
-                      product.inStock ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${product.inStock ? "bg-emerald-500" : "bg-red-500"}`} />
-                      {product.inStock ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => openEdit(product)}
-                        className="p-2 rounded-lg hover:bg-blue-50 text-zinc-400 hover:text-blue-600 transition-colors"
-                        title="Edit"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm(product.id)}
-                        className="p-2 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-600 transition-colors"
-                        title="Delete"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {filteredProducts.length === 0 && (
-          <div className="py-12 text-center text-zinc-400">
-            <svg className="w-12 h-12 mx-auto mb-3 text-zinc-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-            <p className="text-sm">No products found</p>
-            <p className="text-xs text-zinc-300 mt-1">Try adjusting your search or filters.</p>
-          </div>
-        )}
-      </div>
-
-      {/* ─── Create/Edit Product Modal ───────────────────────────── */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <div className="relative bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-zinc-100 sticky top-0 bg-white z-10">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-zinc-900">
-                  {editingProduct ? "Edit Product" : "Add New Product"}
-                </h3>
-                <button onClick={() => setShowForm(false)} className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-400">
-                  <IconX />
-                </button>
-              </div>
-            </div>
-            <form onSubmit={handleSave} className="p-6 space-y-6">
-              {/* ═══ Section: Basic Info ═══ */}
-              <div>
-                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-blue-600 rounded-full" />
-                  Basic Information
-                </h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Product Name *</label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Category *</label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                      required
-                    >
-                      <option value="">Select category</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Subcategory</label>
-                    <input
-                      type="text"
-                      value={formData.subcategory}
-                      onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
-                      placeholder="e.g. Corrugated Boxes"
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ═══ Section: Pricing ═══ */}
-              <div>
-                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-green-600 rounded-full" />
-                  Pricing
-                </h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Price (₹) *</label>
-                    <input
-                      type="number"
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                      required
-                      min={0}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Original/MRP Price</label>
-                    <input
-                      type="number"
-                      value={formData.original_price}
-                      onChange={(e) => setFormData({ ...formData, original_price: Number(e.target.value) })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                      min={0}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Discount (%)</label>
-                    <input
-                      type="number"
-                      value={formData.discount}
-                      onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                      min={0}
-                      max={100}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ═══ Section: Inventory ═══ */}
-              <div>
-                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-amber-600 rounded-full" />
-                  Inventory
-                </h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Stock Count</label>
-                    <input
-                      type="number"
-                      value={formData.stock_count}
-                      onChange={(e) => setFormData({ ...formData, stock_count: Number(e.target.value) })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                      min={0}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">MOQ</label>
-                    <input
-                      type="number"
-                      value={formData.moq}
-                      onChange={(e) => setFormData({ ...formData, moq: Number(e.target.value) })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                      min={1}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Unit</label>
-                    <select
-                      value={formData.unit}
-                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    >
-                      <option value="piece">Piece</option>
-                      <option value="roll">Roll</option>
-                      <option value="box">Box</option>
-                      <option value="set">Set</option>
-                      <option value="meter">Meter</option>
-                      <option value="kg">Kg</option>
-                      <option value="pack">Pack</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* ═══ Section: Product Flags ═══ */}
-              <div>
-                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-purple-600 rounded-full" />
-                  Product Flags
-                </h4>
-                <div className="flex flex-wrap gap-4">
-                  {[
-                    { key: "in_stock", label: "In Stock" },
-                    { key: "is_featured", label: "Featured" },
-                    { key: "is_best_seller", label: "Best Seller" },
-                    { key: "is_new", label: "New" },
-                    { key: "customization_available", label: "Customizable" },
-                  ].map((flag) => (
-                    <label key={flag.key} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={(formData as any)[flag.key]}
-                        onChange={(e) => setFormData({ ...formData, [flag.key]: e.target.checked })}
-                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-zinc-700">{flag.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* ═══ Section: Variants (Pack Sizes) ═══ */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-bold text-zinc-800 flex items-center gap-2">
-                    <span className="w-1 h-5 bg-indigo-600 rounded-full" />
-                    Variants / Pack Sizes
-                    <span className="text-[10px] font-normal text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">
-                      e.g. Back of 50, Back of 100
-                    </span>
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={addVariant}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
-                  >
-                    <IconPlus />
-                    Add Variant
-                  </button>
-                </div>
-                
-                {formData.variants.length === 0 && (
-                  <div className="border-2 border-dashed border-zinc-200 rounded-xl p-6 text-center">
-                    <p className="text-sm text-zinc-400">No variants added yet.</p>
-                    <p className="text-xs text-zinc-300 mt-1">Add pack sizes like "Back of 50", "Back of 100" for this product.</p>
-                  </div>
+      {/* Products Grid — rich cards with full product details */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {filteredProducts.map((product) => {
+          const catName = categories.find((c) => c.id === product.category)?.name || product.category.replace(/-/g, " ");
+          const discount = product.originalPrice && product.originalPrice > product.price
+            ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+            : product.discount || 0;
+          const productUrl = `${window.location.origin}/product/${product.slug || product.id}`;
+          return (
+            <div
+              key={product.id}
+              className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all hover:shadow-md ${
+                product.inStock ? "border-zinc-100" : "border-red-200 bg-red-50/40"
+              }`}
+            >
+              {/* Image + badges */}
+              <div className="relative h-36 bg-zinc-50 border-b border-zinc-100 overflow-hidden">
+                {product.images?.[0] ? (
+                  <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-5xl opacity-20">📦</div>
                 )}
-
-                <div className="space-y-3">
-                  {formData.variants.map((variant, idx) => (
-                    <div key={variant.id} className="bg-zinc-50 rounded-xl border border-zinc-200 p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                          Variant #{idx + 1}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeVariant(idx)}
-                          className="p-1 rounded-lg hover:bg-red-100 text-zinc-400 hover:text-red-600 transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="col-span-2 sm:col-span-1">
-                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Label *</label>
-                          <input
-                            type="text"
-                            value={variant.label}
-                            onChange={(e) => updateVariant(idx, "label", e.target.value)}
-                            placeholder="Back of 50"
-                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Value</label>
-                          <input
-                            type="text"
-                            value={variant.value}
-                            onChange={(e) => updateVariant(idx, "value", e.target.value)}
-                            placeholder="50"
-                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">SKU</label>
-                          <input
-                            type="text"
-                            value={variant.sku}
-                            onChange={(e) => updateVariant(idx, "sku", e.target.value)}
-                            placeholder="box-50"
-                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Weight (g)</label>
-                          <input
-                            type="number"
-                            value={variant.weight}
-                            onChange={(e) => updateVariant(idx, "weight", Number(e.target.value))}
-                            placeholder="0"
-                            min={0}
-                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Price (₹)</label>
-                          <input
-                            type="number"
-                            value={variant.price}
-                            onChange={(e) => updateVariant(idx, "price", Number(e.target.value))}
-                            placeholder="0"
-                            min={0}
-                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">MRP (₹)</label>
-                          <input
-                            type="number"
-                            value={variant.mrp}
-                            onChange={(e) => updateVariant(idx, "mrp", Number(e.target.value))}
-                            placeholder="0"
-                            min={0}
-                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Discount (%)</label>
-                          <input
-                            type="number"
-                            value={variant.discount}
-                            readOnly
-                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs bg-zinc-100 text-zinc-500 cursor-not-allowed"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Stock</label>
-                          <input
-                            type="number"
-                            value={variant.stock}
-                            onChange={(e) => updateVariant(idx, "stock", Number(e.target.value))}
-                            placeholder="0"
-                            min={0}
-                            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={variant.inStock}
-                            onChange={(e) => updateVariant(idx, "inStock", e.target.checked)}
-                            className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          <span className="text-[11px] text-zinc-500">In Stock</span>
-                        </label>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* ═══ Section: Descriptions ═══ */}
-              <div>
-                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-sky-600 rounded-full" />
-                  Descriptions
-                </h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Short Description</label>
-                    <input
-                      type="text"
-                      value={formData.short_description}
-                      onChange={(e) => setFormData({ ...formData, short_description: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Full Description</label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      rows={4}
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ═══ Section: Features ═══ */}
-              <div>
-                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-rose-600 rounded-full" />
-                  Features
-                </h4>
-                <textarea
-                  value={formData.features}
-                  onChange={(e) => setFormData({ ...formData, features: e.target.value })}
-                  rows={3}
-                  placeholder="Feature 1, Feature 2, Feature 3"
-                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
-                />
-                <p className="text-xs text-zinc-400 mt-1">Separate features with commas</p>
-              </div>
-
-              {/* ═══ Section: Specifications ═══ */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-bold text-zinc-800 flex items-center gap-2">
-                    <span className="w-1 h-5 bg-teal-600 rounded-full" />
-                    Specifications
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={addSpecification}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-teal-600 bg-teal-50 rounded-lg hover:bg-teal-100 transition-colors"
-                  >
-                    <IconPlus />
-                    Add Spec
-                  </button>
-                </div>
-                {formData.specifications.length === 0 && (
-                  <p className="text-sm text-zinc-400 italic">No specifications added. Click "Add Spec" to add key-value pairs.</p>
-                )}
-                <div className="space-y-2">
-                  {formData.specifications.map((spec, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={spec.key}
-                        onChange={(e) => updateSpecification(idx, "key", e.target.value)}
-                        placeholder="Specification name (e.g. Material)"
-                        className="flex-1 px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                      />
-                      <input
-                        type="text"
-                        value={spec.value}
-                        onChange={(e) => updateSpecification(idx, "value", e.target.value)}
-                        placeholder="Value (e.g. Corrugated Kraft)"
-                        className="flex-1 px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeSpecification(idx)}
-                        className="p-2 rounded-lg hover:bg-red-50 text-zinc-400 hover:text-red-600 transition-colors"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* ═══ Section: Applications ═══ */}
-              <div>
-                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-primary-600 rounded-full" />
-                  Applications
-                  <span className="text-[10px] font-normal text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">
-                    Use cases for this product
-                  </span>
-                </h4>
-                <textarea
-                  value={formData.applications}
-                  onChange={(e) => setFormData({ ...formData, applications: e.target.value })}
-                  rows={2}
-                  placeholder="E-commerce, Retail, Food Delivery, Electronics"
-                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
-                />
-                <p className="text-xs text-zinc-400 mt-1">Separate applications with commas</p>
-              </div>
-
-              {/* ═══ Section: Printing Options ═══ */}
-              <div>
-                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-cyan-600 rounded-full" />
-                  Printing Options
-                </h4>
-                <textarea
-                  value={formData.printing_options}
-                  onChange={(e) => setFormData({ ...formData, printing_options: e.target.value })}
-                  rows={2}
-                  placeholder="1-Color Print, 2-Color Print, Full CMYK, No Print"
-                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
-                />
-                <p className="text-xs text-zinc-400 mt-1">Separate printing options with commas</p>
-              </div>
-
-              {/* ═══ Section: Product Images ═══ */}
-              <div>
-                <h4 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
-                  <span className="w-1 h-5 bg-pink-600 rounded-full" />
-                  Product Images
-                </h4>
-                <div className="space-y-3">
-                  {/* Upload Area */}
-                  <div className="border-2 border-dashed border-zinc-200 rounded-xl p-6 text-center hover:border-blue-400 transition-colors">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      id="product-image-upload"
-                      onChange={async (e) => {
-                        const files = e.target.files;
-                        if (!files || files.length === 0) return;
-                        
-                        const uploadedUrls: string[] = [];
-                        for (let i = 0; i < files.length; i++) {
-                          const file = files[i];
-                          const ext = file.name.split('.').pop();
-                          const fileName = `product-${Date.now()}-${i}.${ext}`;
-                          
-                          const { data, error } = await supabase.storage
-                            .from('product-images')
-                            .upload(fileName, file, {
-                              cacheControl: '3600',
-                              upsert: false,
-                            });
-                          
-                          if (error) {
-                            alert('Upload failed: ' + error.message);
-                            continue;
-                          }
-                          
-                          const { data: urlData } = supabase.storage
-                            .from('product-images')
-                            .getPublicUrl(data.path);
-                          
-                          uploadedUrls.push(urlData.publicUrl);
-                        }
-                        
-                        if (uploadedUrls.length > 0) {
-                          const existing = formData.images ? formData.images.split(', ').filter(Boolean) : [];
-                          setFormData({ ...formData, images: [...existing, ...uploadedUrls].join(', ') });
-                        }
-                        // Reset input
-                        e.target.value = '';
-                      }}
-                    />
-                    <label htmlFor="product-image-upload" className="cursor-pointer">
-                      <svg className="w-10 h-10 mx-auto text-zinc-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <p className="text-sm text-zinc-500 font-medium">Click to upload images</p>
-                      <p className="text-xs text-zinc-400 mt-1">PNG, JPG, WebP up to 5MB</p>
-                    </label>
-                  </div>
-
-                  {/* Image Preview */}
-                  {formData.images && (
-                    <div className="flex flex-wrap gap-3">
-                      {formData.images.split(',').map((url, idx) => {
-                        const trimmedUrl = url.trim();
-                        if (!trimmedUrl) return null;
-                        return (
-                          <div key={idx} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-zinc-200 bg-zinc-50">
-                            <img
-                              src={trimmedUrl}
-                              alt={`Product image ${idx + 1}`}
-                              className="w-full h-full object-cover"
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const urls = formData.images.split(',').map(u => u.trim()).filter(Boolean);
-                                urls.splice(idx, 1);
-                                setFormData({ ...formData, images: urls.join(', ') });
-                              }}
-                              className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
+                <div className="absolute top-2 left-2 flex flex-col gap-1">
+                  {discount > 0 && (
+                    <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-red-500 rounded-md">-{discount}%</span>
                   )}
-
-                  {/* Manual URL Input */}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 relative">
-                        <input
-                          type="text"
-                          value={formData.images}
-                          onChange={(e) => setFormData({ ...formData, images: e.target.value })}
-                          placeholder="Or paste image URLs (comma separated)"
-                          className="w-full px-4 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-xs text-zinc-400 mt-1">Multiple URLs: separate with commas</p>
-                  </div>
+                  {product.subcategory && (
+                    <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-zinc-800/70 rounded-md backdrop-blur-sm">{product.subcategory}</span>
+                  )}
                 </div>
+                <div className="absolute top-2 right-2 flex gap-1">
+                  {product.isNew && <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-blue-600 rounded-md">NEW</span>}
+                  {product.isBestSeller && <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-amber-600 rounded-md">BESTSELLER</span>}
+                  {product.isFeatured && <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-purple-600 rounded-md">FEATURED</span>}
+                </div>
+                <span className={`absolute bottom-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                  product.inStock ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${product.inStock ? "bg-emerald-500" : "bg-red-500"}`} />
+                  {product.inStock ? "In Stock" : "Out of Stock"}
+                </span>
+                <span className="absolute bottom-2 right-2 px-2 py-0.5 text-[10px] font-medium text-zinc-600 bg-white/80 backdrop-blur-sm rounded-md border border-zinc-200">
+                  ID: {product.id}
+                </span>
               </div>
 
-              {/* ─── Action Buttons ─── */}
-              <div className="flex gap-3 pt-2 border-t border-zinc-100">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+              {/* Body */}
+              <div className="p-4 flex flex-col gap-2.5">
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-900 leading-snug line-clamp-2">{product.name}</h3>
+                  <p className="text-xs text-zinc-500 mt-0.5 capitalize">{catName}</p>
+                </div>
+
+                {/* Key stats */}
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg bg-zinc-50 border border-zinc-100 py-1.5">
+                    <p className="text-[10px] text-zinc-400 uppercase tracking-wide">Price</p>
+                    <p className="text-xs font-bold text-zinc-800">₹{product.price.toLocaleString()}</p>
+                    {product.originalPrice && (
+                      <p className="text-[10px] text-zinc-400 line-through">₹{product.originalPrice.toLocaleString()}</p>
+                    )}
+                  </div>
+                  <div className="rounded-lg bg-zinc-50 border border-zinc-100 py-1.5">
+                    <p className="text-[10px] text-zinc-400 uppercase tracking-wide">Stock</p>
+                    <p className="text-xs font-bold text-zinc-800">{product.stockCount.toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-lg bg-zinc-50 border border-zinc-100 py-1.5">
+                    <p className="text-[10px] text-zinc-400 uppercase tracking-wide">MOQ</p>
+                    <p className="text-xs font-bold text-zinc-800">{product.moq} {product.unit}s</p>
+                  </div>
+                </div>
+
+                {/* Variants */}
+                {product.variants && product.variants.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-zinc-400 uppercase tracking-wide mb-1">Pack Sizes ({product.variants.length})</p>
+                    <div className="flex flex-wrap gap-1">
+                      {product.variants.slice(0, 4).map((v) => (
+                        <span key={v.id} className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-100 text-[10px] font-medium">
+                          {v.label}
+                        </span>
+                      ))}
+                      {product.variants.length > 4 && (
+                        <span className="px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-500 text-[10px] font-medium">
+                          +{product.variants.length - 4} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Short description */}
+                {product.shortDescription && (
+                  <p className="text-[11px] text-zinc-500 leading-relaxed line-clamp-2">{product.shortDescription}</p>
+                )}
+
+                {/* Extra badges */}
+                {(product.customizationAvailable || (product.features?.length || 0) > 0) && (
+                  <div className="flex flex-wrap gap-1">
+                    {product.customizationAvailable && (
+                      <span className="px-2 py-0.5 rounded-md bg-primary-50 text-primary border border-primary-100 text-[10px] font-medium">
+                        ✨ Customizable
+                      </span>
+                    )}
+                    <span className="px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600 text-[10px] font-medium">
+                      {product.features?.length || 0} features
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600 text-[10px] font-medium">
+                      {product.reviewCount} reviews
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action bar */}
+              <div className="px-4 pb-4 flex items-center gap-1.5">
+                <a
+                  href={productUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-zinc-200 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors"
+                  title="View on storefront"
                 >
-                  Cancel
-                </button>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  View
+                </a>
                 <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  onClick={() => handleShare(product)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
+                    copiedId === product.id
+                      ? "border-green-200 bg-green-50 text-green-700"
+                      : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                  }`}
+                  title={copiedId === product.id ? "Link copied!" : "Copy product link"}
                 >
-                  {saving ? (
+                  {copiedId === product.id ? (
                     <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      Saving...
+                      Copied!
                     </>
                   ) : (
-                    editingProduct ? "Update Product" : "Create Product"
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                      </svg>
+                      Share
+                    </>
                   )}
                 </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <div className="relative bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
-            <div className="text-center">
-              <div className="w-14 h-14 mx-auto rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-zinc-900 mb-2">Delete Product</h3>
-              <p className="text-sm text-zinc-500 mb-6">
-                Are you sure you want to delete this product? This action cannot be undone.
-              </p>
-              <div className="flex gap-3">
                 <button
-                  onClick={() => setDeleteConfirm(null)}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+                  onClick={() => openEdit(product)}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-zinc-200 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+                  title="Edit product"
                 >
-                  Cancel
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit
                 </button>
                 <button
-                  onClick={() => handleDelete(deleteConfirm)}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+                  onClick={() => setDeleteConfirm(product.id)}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-zinc-200 text-xs font-medium text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors"
+                  title="Delete product"
                 >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
                   Delete
                 </button>
               </div>
             </div>
-          </div>
+          );
+        })}
+      </div>
+
+      {filteredProducts.length === 0 && (
+        <div className="py-12 text-center text-zinc-400 bg-white rounded-2xl border border-zinc-100 shadow-sm">
+          <svg className="w-12 h-12 mx-auto mb-3 text-zinc-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+          <p className="text-sm">No products found</p>
+          <p className="text-xs text-zinc-300 mt-1">Try adjusting your search or filters.</p>
         </div>
+      )}
+
+      {/* ─── Create/Edit Product Modal ───────────────────────────── */}
+      <ProductFormModal
+        open={showForm}
+        editingProduct={editingProduct}
+        categories={categories}
+        onClose={() => setShowForm(false)}
+        onSaved={() => {
+          setShowForm(false);
+          setEditingProduct(null);
+          loadData();
+        }}
+      />
+
+      {/* Delete Confirmation */}
+      {deleteConfirm && (
+        (() => {
+          const deletingProduct = products.find((p) => p.id === deleteConfirm);
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+              <div className="relative bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+                <div className="text-center">
+                  <div className="w-14 h-14 mx-auto rounded-full bg-red-100 flex items-center justify-center mb-4">
+                    <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-bold text-zinc-900 mb-2">Delete Product</h3>
+                  <p className="text-sm text-zinc-600 mb-1">
+                    <span className="font-semibold text-zinc-900">{deletingProduct?.name || "This product"}</span>
+                  </p>
+                  <p className="text-xs text-zinc-400 mb-6">
+                    ID: {deletingProduct?.id} — This action cannot be undone.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setDeleteConfirm(null)}
+                      className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleDelete(deleteConfirm)}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()
       )}
     </div>
   );
