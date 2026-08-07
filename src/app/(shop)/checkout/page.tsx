@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,9 +23,14 @@ import {
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { INDIAN_STATES, PAYMENT_METHODS } from "@/lib/constants";
-import type { Address, Order } from "@/types";
+import type { Address } from "@/types";
 import { useApp } from "@/store";
 import { createOrder } from "@/lib/api";
+import {
+  loadRazorpayCheckoutScript,
+  openRazorpayCheckout,
+  type RazorpayPaymentResponse,
+} from "@/lib/razorpay/client";
 
 interface FormData {
   fullName: string;
@@ -70,6 +75,9 @@ export default function CheckoutPage() {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState("");
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | null>(null);
+  // Razorpay "Online Mode" flow state
+  const [placedPayment, setPlacedPayment] = useState<"cod" | "online">("cod");
+  const paymentSettledRef = useRef(false);
 
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -147,8 +155,17 @@ export default function CheckoutPage() {
   };
 
   const handlePlaceOrder = async () => {
+    if (isPlacingOrder) return;
     setIsPlacingOrder(true);
 
+    // Online Mode -> open the Razorpay checkout. The order is saved
+    // only after the payment is captured & verified server-side.
+    if (selectedPayment === "online") {
+      await handleOnlinePayment();
+      return;
+    }
+
+    // ─── Cash on Delivery flow ───
     const shippingAddress: Address = {
       id: `addr-${Date.now()}`,
       label: "Home",
@@ -196,12 +213,167 @@ export default function CheckoutPage() {
       addOrder(result.order);
       setOrderId(result.order.id);
       setOrderPlaced(true);
+      setPlacedPayment("cod");
       clearCart();
     } else {
       showToast("error", "Order Failed", result.error || "Something went wrong. Please try again.");
     }
     setIsPlacingOrder(false);
   };
+
+  /**
+   * Online Mode: create a Razorpay order server-side, then open the
+   * Razorpay Checkout. Success/failure/dismissal are all handled here.
+   */
+  const handleOnlinePayment = async () => {
+    try {
+      // 1. Create the Razorpay order (server-side, keeps key_secret safe)
+      const createRes = await fetch("/api/payments/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: total, currency: "INR" }),
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok) {
+        throw new Error(createData.error || "Could not start payment. Please try again.");
+      }
+
+
+      // 2. Load the Razorpay checkout widget
+      const loaded = await loadRazorpayCheckoutScript();
+      if (!loaded) {
+        throw new Error("Unable to load the payment gateway. Please try again or choose Cash on Delivery.");
+      }
+
+      // 3. Open the checkout
+      const rzp = openRazorpayCheckout({
+        key: createData.keyId,
+        amount: createData.amount,
+        currency: createData.currency,
+        name: "Boxzz",
+        description: `Order ${createData.boxzzOrderId}`,
+        order_id: createData.orderId,
+        prefill: {
+          name: formData.fullName,
+          email: state.auth.user?.email || undefined,
+          contact: formData.phone.replace(/\D/g, "").slice(-10) || undefined,
+        },
+        notes: { boxzz_order_id: createData.boxzzOrderId },
+        theme: { color: "#c9904b" },
+        modal: {
+          ondismiss: () => {
+            // Fires whenever the modal is closed (cancel, after success/failure)
+            if (!paymentSettledRef.current) {
+              showToast("info", "Payment Cancelled", "No order was placed. You can try again whenever you are ready.");
+            }
+            setIsPlacingOrder(false);
+          },
+        },
+        handler: (response) => {
+          paymentSettledRef.current = true;
+          handlePaymentSuccess(response, createData).catch((e: any) => {
+            console.error("payment verify error:", e);
+            showToast("error", "Order Not Placed", (e.message || "Payment succeeded but we could not confirm your order. Please contact support with your payment reference."));
+            setIsPlacingOrder(false);
+          });
+        },
+      });
+
+      if (!rzp) {
+        throw new Error("The payment gateway is unavailable. Please try again.");
+      }
+
+      // Handle payment failure reported by Razorpay
+      rzp.on("payment.failed", (resp: any) => {
+        paymentSettledRef.current = true;
+        setIsPlacingOrder(false);
+        const code = resp?.error?.code;
+        const description = resp?.error?.description || resp?.error?.reason || "Payment failed. Please try again.";
+        showToast("error", "Payment Failed", `${description}${code ? ` (${code})` : ""}`);
+      });
+
+      rzp.open();
+    } catch (e: any) {
+      console.error("online payment error:", e);
+      showToast("error", "Payment Error", e.message || "Something went wrong. Please try again.");
+      setIsPlacingOrder(false);
+    }
+  };
+
+  /**
+   * Called by Razorpay when the payment is successful. Sends the payment
+   * details + order data to /api/payments/verify which verifies the
+   * signature & captures the order in the database.
+   */
+  const handlePaymentSuccess = async (
+    response: RazorpayPaymentResponse,
+    createData: { boxzzOrderId: string; razorpayOrderId: string }
+  ) => {
+    const shippingAddress: Address = {
+      id: `addr-${Date.now()}`,
+      label: "Home",
+      fullName: formData.fullName,
+      phone: formData.phone,
+      company: formData.company || undefined,
+      line1: formData.addressLine1,
+      line2: formData.addressLine2 || undefined,
+      city: formData.city,
+      state: formData.state,
+      pincode: formData.pincode,
+      isDefault: false,
+    };
+
+    const userId = state.auth.user?.id ?? null;
+
+    const verifyRes = await fetch("/api/payments/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        paymentId: response.razorpay_payment_id,
+        orderId: response.razorpay_order_id,
+        signature: response.razorpay_signature,
+        orderData: {
+          id: createData.boxzzOrderId,
+          items: items.map((item) => ({
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            mrp: item.mrp || item.price,
+            quantity: item.quantity,
+            image: item.image,
+            variant: item.variant,
+            variantId: item.variantId,
+            variantLabel: item.variantLabel,
+            shippingWeight: item.shippingWeight,
+          })),
+          total,
+          subtotal,
+          shipping,
+          gst,
+          shippingAddress,
+          notes: formData.notes || undefined,
+          userId,
+        },
+      }),
+    });
+
+    const verifyData = await verifyRes.json();
+    if (!verifyRes.ok) {
+      throw new Error(verifyData.error || "Payment verification failed. Please try again.");
+    }
+
+    if (verifyData.order) {
+      addOrder(verifyData.order);
+      setOrderId(verifyData.order.id);
+      setOrderPlaced(true);
+      setPlacedPayment("online");
+      clearCart();
+    } else {
+      throw new Error("Your payment was received but the order could not be created. Please contact support.");
+    }
+    setIsPlacingOrder(false);
+  };
+
 
   // Empty cart state
   if (items.length === 0 && !orderPlaced) {
@@ -255,6 +427,22 @@ export default function CheckoutPage() {
             <p className="text-xs text-zinc-500">Order ID</p>
             <p className="text-sm font-bold text-zinc-800 mt-0.5">{orderId}</p>
           </motion.div>
+          {placedPayment === "online" && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
+              className="mt-4 p-4 bg-green-50 rounded-xl border border-green-100"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <CheckCircle className="w-4 h-4 text-success" />
+                <span className="text-sm font-medium text-zinc-800">Payment Successful</span>
+              </div>
+              <p className="text-xs text-zinc-600">
+                Your order is prepaid via Online Mode (Razorpay). A payment confirmation has been recorded with your order.
+              </p>
+            </motion.div>
+          )}
 
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -609,6 +797,9 @@ export default function CheckoutPage() {
                         <span className="text-xl">{method.icon}</span>
                         <div className="text-left">
                           <span className="text-sm font-medium text-zinc-700">{method.name}</span>
+                          {method.description && (
+                            <p className="text-xs text-zinc-400 mt-0.5">{method.description}</p>
+                          )}
                         </div>
                       </button>
                     ))}

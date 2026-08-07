@@ -147,6 +147,15 @@ export type OrderStatus =
   | "cancelled"
   | "returned";
 
+/**
+ * Payment lifecycle of an order.
+ * - `pending`  – COD order awaiting payment on delivery, or a payment attempt that never completed.
+ * - `paid`     – online payment captured successfully (prepaid).
+ * - `failed`   – online payment attempt failed.
+ * - `refunded` – captured payment was refunded.
+ */
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+
 export interface Order {
   id: string;
   items: CartItem[];
@@ -157,6 +166,16 @@ export interface Order {
   gst: number;
   shippingAddress: Address;
   paymentMethod: string;
+  /** Payment lifecycle status. COD orders stay `undefined`/null (pay on delivery). */
+  paymentStatus?: PaymentStatus;
+  /** Razorpay payment id (reference id), e.g. pay_xxxxxxxx. */
+  paymentId?: string;
+  /** Razorpay order id, e.g. order_xxxxxxxx. */
+  razorpayOrderId?: string;
+  /** Raw Razorpay payment payload for admin reconciliation. */
+  paymentDetails?: Record<string, unknown>;
+  /** When the payment was captured. */
+  paidAt?: string;
   notes?: string;
   createdAt: string;
   estimatedDelivery?: string;

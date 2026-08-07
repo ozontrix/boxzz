@@ -245,7 +245,17 @@ function OrderCard({ order }: { order: Order }) {
                 </div>
                 <div className="bg-zinc-50 rounded-lg p-2.5">
                   <p className="text-[10px] font-medium text-zinc-400 uppercase">Payment</p>
-                  <p className="text-xs font-medium text-zinc-700 mt-0.5">{order.paymentMethod}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                    <span className="text-xs font-medium text-zinc-700">{order.paymentMethod}</span>
+                    {order.paymentStatus === "paid" && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-green-50 text-green-700 border border-green-200">
+                        PAID
+                      </span>
+                    )}
+                  </div>
+                  {order.paymentId && (
+                    <p className="text-[9px] font-mono text-zinc-400 mt-0.5">{order.paymentId}</p>
+                  )}
                 </div>
                 {order.estimatedDelivery && (
                   <div className="bg-zinc-50 rounded-lg p-2.5">

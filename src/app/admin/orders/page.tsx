@@ -106,6 +106,33 @@ function OrderTimeline({ status }: { status: OrderStatus }) {
   );
 }
 
+function PaymentBadge({ order, className = "" }: { order: Order; className?: string }) {
+  const isOnline = (order.paymentMethod || "").toLowerCase().includes("online");
+  const isPaid = order.paymentStatus === "paid";
+  const isFailed = order.paymentStatus === "failed";
+
+  let label = "COD";
+  let classes = "bg-zinc-100 text-zinc-600 border-zinc-200";
+  if (isOnline) {
+    if (isPaid) {
+      label = "PAID";
+      classes = "bg-emerald-50 text-emerald-700 border-emerald-200";
+    } else if (isFailed) {
+      label = "FAILED";
+      classes = "bg-red-50 text-red-700 border-red-200";
+    } else {
+      label = "PENDING";
+      classes = "bg-amber-50 text-amber-700 border-amber-200";
+    }
+  }
+
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${classes} ${className}`}>
+      {label}
+    </span>
+  );
+}
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -302,7 +329,9 @@ export default function AdminOrdersPage() {
           </div>
 
           <div class="section">
-            <p class="muted">Payment Method: ${selectedOrder.paymentMethod}</p>
+            <p class="muted">Payment Method: ${selectedOrder.paymentMethod}${selectedOrder.paymentStatus === "paid" ? " (Paid)" : ""}</p>
+            ${selectedOrder.paymentId ? `<p class="muted">Payment Reference: ${selectedOrder.paymentId}</p>` : ""}
+            ${selectedOrder.razorpayOrderId ? `<p class="muted">Razorpay Order: ${selectedOrder.razorpayOrderId}</p>` : ""}
           </div>
         </body>
       </html>
@@ -397,6 +426,7 @@ export default function AdminOrdersPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Customer</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Items</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Payment</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Actions</th>
@@ -417,6 +447,9 @@ export default function AdminOrdersPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <span className="text-sm font-semibold text-zinc-800">₹{order.total.toLocaleString()}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <PaymentBadge order={order} />
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${statusColors[order.status] || "bg-zinc-100 text-zinc-600 border-zinc-200"}`}>
@@ -601,7 +634,27 @@ export default function AdminOrdersPage() {
                     {selectedOrder.paymentMethod && (
                       <p className="text-xs text-zinc-400 mt-1">
                         Payment: <span className="text-zinc-600 font-medium">{selectedOrder.paymentMethod}</span>
+                        <PaymentBadge order={selectedOrder} className="ml-1.5" />
                       </p>
+                    )}
+                    {selectedOrder.paymentStatus === "paid" && (selectedOrder.paymentId || selectedOrder.razorpayOrderId) && (
+                      <div className="mt-1.5 space-y-0.5">
+                        {selectedOrder.paymentId && (
+                          <p className="text-[10px] text-zinc-400 font-mono">
+                            Ref: {selectedOrder.paymentId}
+                          </p>
+                        )}
+                        {selectedOrder.razorpayOrderId && (
+                          <p className="text-[10px] text-zinc-400 font-mono">
+                            RZP Order: {selectedOrder.razorpayOrderId}
+                          </p>
+                        )}
+                        {selectedOrder.paidAt && (
+                          <p className="text-[10px] text-zinc-400">
+                            Paid: {new Date(selectedOrder.paidAt).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        )}
+                      </div>
                     )}
                     {selectedOrder.notes && (
                       <p className="text-xs mt-2 p-2 bg-amber-50 border border-amber-100 rounded-lg text-amber-800">

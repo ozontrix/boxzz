@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
-import type { Product, Category, Banner, Address, Order, OrderStatus, CartItem } from "@/types";
+import { mapOrder } from "./map-order";
+import type { Product, Category, Banner, Address, Order, OrderStatus } from "@/types";
 
 // ─── Categories ──────────────────────────────────────────────────
 export async function adminGetCategories(): Promise<Category[]> {
@@ -479,58 +480,5 @@ function mapAddress(raw: any): Address {
     state: raw.state,
     pincode: raw.pincode,
     isDefault: raw.is_default,
-  };
-}
-
-function mapOrder(raw: any): Order {
-  const items: CartItem[] = raw.order_items?.map((oi: any) => ({
-    productId: oi.product_id,
-    name: oi.product_name,
-    price: oi.price,
-    quantity: oi.quantity,
-    image: oi.image ?? "📦",
-    variant: oi.variant ?? undefined,
-  })) ?? [];
-
-  const address: Address = raw.shipping_address
-    ? {
-        id: raw.shipping_address.id || `addr-${raw.id}`,
-        label: raw.shipping_address.label || "Shipping",
-        fullName: raw.shipping_address.full_name || raw.shipping_address.fullName || "",
-        phone: raw.shipping_address.phone || "",
-        company: raw.shipping_address.company,
-        line1: raw.shipping_address.line1 || "",
-        line2: raw.shipping_address.line2,
-        city: raw.shipping_address.city || "",
-        state: raw.shipping_address.state || "",
-        pincode: raw.shipping_address.pincode || "",
-        isDefault: false,
-      }
-    : {
-        id: `addr-${raw.id}`,
-        label: "Shipping",
-        fullName: "",
-        phone: "",
-        line1: "",
-        city: "",
-        state: "",
-        pincode: "",
-        isDefault: false,
-      };
-
-  return {
-    id: raw.id,
-    items,
-    status: raw.status as OrderStatus,
-    total: raw.total,
-    subtotal: raw.subtotal !== undefined ? raw.subtotal : (raw.total - (raw.gst || 0) - (raw.shipping || 0)),
-    shipping: raw.shipping !== undefined ? raw.shipping : 0,
-    gst: raw.gst !== undefined ? raw.gst : 0,
-    shippingAddress: address,
-    paymentMethod: raw.payment_method,
-    notes: raw.notes ?? undefined,
-    createdAt: raw.created_at,
-    estimatedDelivery: raw.estimated_delivery ?? undefined,
-    trackingId: raw.tracking_id ?? undefined,
   };
 }
