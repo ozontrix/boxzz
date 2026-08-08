@@ -328,10 +328,6 @@ export default function AdminDashboard() {
                 <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Online</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-600">Supabase DB</span>
-                <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Connected</span>
-              </div>
-              <div className="flex items-center justify-between">
                 <span className="text-sm text-zinc-600">Products</span>
                 <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{stats.totalProducts}</span>
               </div>
