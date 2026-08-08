@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -160,7 +161,15 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
       </head>
-      <body className="min-h-full flex flex-col bg-white">{children}</body>
+      <body className="min-h-full flex flex-col bg-white">
+        {children}
+        {/* Tawk.to live chat widget */}
+        <Script
+          id="tawk-to"
+          strategy="afterInteractive"
+          src="https://embed.tawk.to/6a76436ee014d81d4ab6235d/1jveveqj6"
+        />
+      </body>
     </html>
   );
 }

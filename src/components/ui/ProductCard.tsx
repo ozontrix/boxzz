@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Heart, ShoppingCart, Eye, Check } from "lucide-react";
 import { cn, formatPrice, calculateDiscount } from "@/lib/utils";
@@ -14,7 +15,7 @@ interface ProductCardProps {
   index?: number;
 }
 
-export function ProductCard({ product, index = 0 }: ProductCardProps) {
+function ProductCardBase({ product, index = 0 }: ProductCardProps) {
   const { addToCart, addToWishlist, removeFromWishlist, isInWishlist, isInCart, showToast } = useApp();
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
@@ -75,11 +76,14 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
             onMouseLeave={() => hasSlider && setCurrentImageIndex(0)}
           >
             {product.images?.[currentImageIndex] ? (
-              <img
+              <Image
                 src={product.images[currentImageIndex]}
                 alt={product.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                fill
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="object-cover group-hover:scale-105 transition-transform duration-700"
                 loading="lazy"
+                decoding="async"
               />
             ) : (
               <div className="text-6xl opacity-20 select-none">
@@ -279,6 +283,8 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     </motion.div>
   );
 }
+
+export const ProductCard = memo(ProductCardBase);
 
 // Missing Star import
 function Star(props: React.SVGProps<SVGSVGElement>) {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Grid3X3,
@@ -125,10 +126,14 @@ export default function CategoriesPage() {
                 >
                   {/* Group Image */}
                   <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden shrink-0 bg-zinc-100">
-                    <img
+                    <Image
                       src={group.image}
                       alt={group.name}
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="64px"
+                      className="object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <div className={`absolute inset-0 bg-gradient-to-t ${gradient} opacity-20`} />
                   </div>

@@ -300,7 +300,7 @@ export async function adminDeleteBanner(id: string): Promise<void> {
 export async function adminGetUsers() {
   const { data: orderUsers, error: orderError } = await supabase
     .from("orders")
-    .select("user_id, shipping_address")
+    .select("user_id, total, shipping_address")
     .order("created_at", { ascending: false });
   if (orderError) throw orderError;
 
@@ -375,9 +375,10 @@ export async function adminUpdateSettings(settings: { key: string; value: string
 
 // ─── Dashboard Stats ─────────────────────────────────────────────
 export async function adminGetDashboardStats() {
+  // Only the columns the dashboard actually renders, to keep payloads small
   const { data: orders, error: ordersError } = await supabase
     .from("orders")
-    .select("*");
+    .select("id, total, status, created_at, shipping_address, payment_method");
   if (ordersError) throw ordersError;
 
   const { data: products, error: productsError } = await supabase

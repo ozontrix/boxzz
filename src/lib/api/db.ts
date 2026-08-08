@@ -228,14 +228,25 @@ export async function searchProducts(query: string): Promise<Product[]> {
 
 // ─── Categories ───────────────────────────────────────────────────
 
+// ─── Categories ───────────────────────────────────────────────────
+let categoriesCache: { data: Category[] | null; at: number } | null = null;
+const CATEGORIES_CACHE_TTL = 60_000; // 60s
+
 export async function getAllCategories(): Promise<Category[]> {
+  // Serve from the short-lived cache so Header, Footer & the home page
+  // share a single DB round trip instead of fetching separately.
+  if (categoriesCache && Date.now() - categoriesCache.at < CATEGORIES_CACHE_TTL) {
+    return categoriesCache.data ?? [];
+  }
   try {
     const { data, error } = await supabase
       .from("categories")
       .select("*")
       .order("name", { ascending: true });
     if (error) throw error;
-    return (data ?? []).map(mapCategory);
+    const categories = (data ?? []).map(mapCategory);
+    categoriesCache = { data: categories, at: Date.now() };
+    return categories;
   } catch (e) {
     console.error("getAllCategories error:", e);
     return [];

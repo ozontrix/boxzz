@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -66,10 +67,13 @@ export function HeroBanner() {
             className="absolute inset-0"
           >
             {/* Background Image */}
-            <img
+            <Image
               src={banner.image}
               alt={banner.title}
-              className="absolute inset-0 w-full h-full object-cover"
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
             />
             {/* Overlay for text readability */}
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />

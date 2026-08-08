@@ -1,5 +1,5 @@
 // Boxzz PWA Service Worker
-const CACHE_NAME = "boxzz-cache-v1";
+const CACHE_NAME = "boxzz-cache-v2";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
@@ -7,7 +7,7 @@ const STATIC_ASSETS = [
   "/icons/icon-192x192.png",
   "/icons/icon-384x384.png",
   "/icons/icon-512x512.png",
-  "/boxzz-logo.png",
+  "/boxzz_final_logo.png",
   "/favicon.png",
 ];
 

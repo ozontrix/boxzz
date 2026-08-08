@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   User,
@@ -199,7 +200,15 @@ function OrderCard({ order }: { order: Order }) {
                     <div key={idx} className="flex items-center gap-2.5">
                       <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-zinc-50 to-zinc-100 border border-zinc-100 overflow-hidden flex items-center justify-center shrink-0">
                         {item.image && !item.image.startsWith("📦") ? (
-                          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                          <Image
+                            src={item.image}
+                            alt={item.name}
+                            width={96}
+                            height={96}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                          />
                         ) : (
                           <span className="text-xl">📦</span>
                         )}

@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
+import Image from "next/image";
 
 interface ImageGalleryProps {
   images: string[];
@@ -80,11 +81,13 @@ export function ImageGallery({ images, productName, category }: ImageGalleryProp
             className="absolute inset-0"
           >
             {currentImage ? (
-              <img
+              <Image
                 src={currentImage}
                 alt={`${productName} view ${selectedImage + 1}`}
+                fill
+                sizes="(max-width: 640px) 100vw, 50vw"
                 className={cn(
-                  "w-full h-full object-contain transition-transform duration-200 p-4",
+                  "object-contain transition-transform duration-200 p-4",
                   isZoomed && "scale-150"
                 )}
                 style={
@@ -167,10 +170,14 @@ export function ImageGallery({ images, productName, category }: ImageGalleryProp
               )}
             >
               {img ? (
-                <img
+                <Image
                   src={img}
                   alt={`${productName} thumbnail ${idx + 1}`}
-                  className="w-full h-full object-cover"
+                  fill
+                  sizes="64px"
+                  className="object-cover"
+                  loading="lazy"
+                  decoding="async"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-lg">

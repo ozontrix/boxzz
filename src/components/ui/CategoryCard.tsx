@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Package } from "lucide-react";
 import type { Category, FeaturedCategory } from "@/types";
@@ -43,7 +45,7 @@ const accentColorMap: Record<string, string> = {
   "corrugated-roll": "bg-stone-500",
 };
 
-export function CategoryCard({ category, index = 0, href }: CategoryCardProps) {
+function CategoryCardBase({ category, index = 0, href }: CategoryCardProps) {
   const gradient = gradientMap[category.id] || "from-primary/90 to-primary-dark/90";
   const accent = accentColorMap[category.id] || "bg-primary";
 
@@ -60,10 +62,13 @@ export function CategoryCard({ category, index = 0, href }: CategoryCardProps) {
       >
         {/* ─── Image Container ─── */}
         <div className="relative aspect-[4/3] overflow-hidden bg-zinc-100">
-          <img
+          <Image
             src={category.image}
             alt={category.name}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+            decoding="async"
           />
 
           {/* Gradient Overlay */}
@@ -106,3 +111,5 @@ export function CategoryCard({ category, index = 0, href }: CategoryCardProps) {
     </motion.div>
   );
 }
+
+export const CategoryCard = memo(CategoryCardBase);
