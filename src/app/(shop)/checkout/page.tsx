@@ -25,7 +25,6 @@ import { cn, formatPrice } from "@/lib/utils";
 import { INDIAN_STATES, PAYMENT_METHODS } from "@/lib/constants";
 import type { Address } from "@/types";
 import { useApp } from "@/store";
-import { createOrder } from "@/lib/api";
 import {
   loadRazorpayCheckoutScript,
   openRazorpayCheckout,
@@ -70,13 +69,13 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { state, clearCart, showToast, addOrder, addAddress, refreshUserData } = useApp();
   const [step, setStep] = useState<"address" | "payment" | "confirm">("address");
-  const [selectedPayment, setSelectedPayment] = useState("cod");
+  const [selectedPayment, setSelectedPayment] = useState("online");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState("");
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | null>(null);
   // Razorpay "Online Mode" flow state
-  const [placedPayment, setPlacedPayment] = useState<"cod" | "online">("cod");
+  const [placedPayment, setPlacedPayment] = useState<"online">("online");
   const paymentSettledRef = useRef(false);
 
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
@@ -158,67 +157,9 @@ export default function CheckoutPage() {
     if (isPlacingOrder) return;
     setIsPlacingOrder(true);
 
-    // Online Mode -> open the Razorpay checkout. The order is saved
-    // only after the payment is captured & verified server-side.
-    if (selectedPayment === "online") {
-      await handleOnlinePayment();
-      return;
-    }
-
-    // ─── Cash on Delivery flow ───
-    const shippingAddress: Address = {
-      id: `addr-${Date.now()}`,
-      label: "Home",
-      fullName: formData.fullName,
-      phone: formData.phone,
-      company: formData.company || undefined,
-      line1: formData.addressLine1,
-      line2: formData.addressLine2 || undefined,
-      city: formData.city,
-      state: formData.state,
-      pincode: formData.pincode,
-      isDefault: false,
-    };
-
-    const userId = state.auth.user?.id ?? null;
-    const selectedPaymentMethod = PAYMENT_METHODS.find((m) => m.id === selectedPayment);
-    const paymentMethodLabel = selectedPaymentMethod?.name || "Cash on Delivery";
-
-    const result = await createOrder(
-      {
-        items: items.map((item) => ({
-          productId: item.productId,
-          name: item.name,
-          price: item.price,
-          mrp: item.mrp || item.price,
-          quantity: item.quantity,
-          image: item.image,
-          variant: item.variant,
-          variantId: item.variantId,
-          variantLabel: item.variantLabel,
-          shippingWeight: item.shippingWeight,
-        })),
-        total,
-        subtotal,
-        shipping,
-        gst,
-        shippingAddress,
-        paymentMethod: paymentMethodLabel,
-        notes: formData.notes || undefined,
-      },
-      userId
-    );
-
-    if (result.order) {
-      addOrder(result.order);
-      setOrderId(result.order.id);
-      setOrderPlaced(true);
-      setPlacedPayment("cod");
-      clearCart();
-    } else {
-      showToast("error", "Order Failed", result.error || "Something went wrong. Please try again.");
-    }
-    setIsPlacingOrder(false);
+    // Only "Online Mode" is offered. Open the Razorpay checkout — the
+    // order is saved only after the payment is captured & verified server-side.
+    await handleOnlinePayment();
   };
 
   /**
@@ -242,7 +183,7 @@ export default function CheckoutPage() {
       // 2. Load the Razorpay checkout widget
       const loaded = await loadRazorpayCheckoutScript();
       if (!loaded) {
-        throw new Error("Unable to load the payment gateway. Please try again or choose Cash on Delivery.");
+        throw new Error("Unable to load the payment gateway. Please try again.");
       }
 
       // 3. Open the checkout

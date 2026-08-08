@@ -96,8 +96,7 @@ export default function TermsConditionsPage() {
             <h3>4. Orders & Payment</h3>
             <ul>
               <li>Orders are confirmed only after payment is received in full</li>
-              <li>We accept Cash on Delivery (COD), Bank Transfer (NEFT/IMPS), and UPI payments</li>
-              <li>For COD orders, a nominal convenience fee may apply</li>
+              <li>We accept Bank Transfer (NEFT/IMPS), UPI payments, and online payments via Razorpay (Debit/Credit Card, Net Banking & more)</li>
               <li>We reserve the right to cancel any order due to pricing errors, stock unavailability, or suspected fraud</li>
               <li>Bulk orders may require advance payment as per mutual agreement</li>
             </ul>

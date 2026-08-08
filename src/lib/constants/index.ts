@@ -1238,6 +1238,5 @@ export const INDIAN_STATES = [
 ];
 
 export const PAYMENT_METHODS = [
-  { id: "cod", name: "Cash on Delivery", icon: "💵" },
   { id: "online", name: "Online Mode", icon: "💳", description: "UPI, Debit/Credit Card, Net Banking & more via Razorpay" },
 ];
