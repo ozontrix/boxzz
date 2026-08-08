@@ -18,7 +18,7 @@ const SECTION_CONFIG: Record<string, { label: string; icon: string; description:
   general: { label: "General", icon: "⚙️", description: "Site name, description, tagline & currency settings" },
   contact: { label: "Contact", icon: "📞", description: "Phone, email, address & working hours" },
   shipping: { label: "Shipping & GST", icon: "🚚", description: "Free shipping threshold, standard charge & GST rate" },
-  legal: { label: "Legal Pages", icon: "📜", description: "Privacy Policy, Terms & Conditions, Shipping Policy content" },
+  legal: { label: "Legal Pages", icon: "📜", description: "Privacy Policy, Terms & Conditions, Shipping Policy & Refund Policy content" },
 };
 
 export default function AdminSettingsPage() {

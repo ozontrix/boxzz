@@ -96,6 +96,7 @@ export function Footer() {
     { label: "Privacy Policy", href: "/privacy-policy" },
     { label: "Terms & Conditions", href: "/terms-conditions" },
     { label: "Shipping Policy", href: "/shipping-policy" },
+    { label: "Refund Policy", href: "/refund-policy" },
   ];
 
   const topCategories = dbCategories.slice(0, 6);
@@ -512,6 +513,25 @@ export function Footer() {
               );
             })}
           </div>
+        </div>
+      </div>
+
+      {/* ─── PAYMENT PARTNER / SECURE PAYMENTS ─── */}
+      <div className="bg-zinc-950 border-t border-zinc-800/60">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+          <span className="inline-flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+            Payments are <span className="text-zinc-300 font-medium">100% secure</span>
+          </span>
+          <span className="hidden sm:inline text-zinc-700">•</span>
+          <span>Powered by</span>
+          <Image
+            src="/razorpay_white.png"
+            alt="Razorpay"
+            width={80}
+            height={17}
+            className="h-4 w-auto object-contain"
+          />
         </div>
       </div>
 
