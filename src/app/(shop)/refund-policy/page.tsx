@@ -4,10 +4,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChevronLeft, Home, RotateCcw } from "lucide-react";
 import { supabase } from "@/lib/api/supabase";
-import { SITE_NAME, CONTACT_INFO } from "@/lib/constants";
+import { useApp } from "@/store";
+import { SITE_NAME } from "@/lib/constants";
 
 export default function RefundPolicyPage() {
   const [content, setContent] = useState("");
+  const { state } = useApp();
+  const contact = state.contact;
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -119,9 +122,9 @@ export default function RefundPolicyPage() {
                 <h3>5. How to Request a Refund</h3>
                 <p>To initiate a return or refund request, please contact our support team within the return window:</p>
                 <ul>
-                  <li><strong>Email</strong>: {CONTACT_INFO.email}</li>
-                  <li><strong>Phone / WhatsApp</strong>: {CONTACT_INFO.phone}</li>
-                  <li><strong>Working Hours</strong>: {CONTACT_INFO.workingHours}</li>
+                  <li><strong>Email</strong>: {contact.email}</li>
+                  <li><strong>Phone / WhatsApp</strong>: {contact.phone}</li>
+                  <li><strong>Working Hours</strong>: {contact.workingHours}</li>
                 </ul>
                 <p>
                   Please share your <strong>order ID</strong>, the <strong>product name</strong>, and a brief description
@@ -173,10 +176,10 @@ export default function RefundPolicyPage() {
                 <h3>10. Contact Us</h3>
                 <p>If you have any questions about this Refund Policy, please reach out to us:</p>
                 <ul>
-                  <li><strong>Email</strong>: {CONTACT_INFO.email}</li>
-                  <li><strong>Phone</strong>: {CONTACT_INFO.phone}</li>
-                  <li><strong>Address</strong>: {CONTACT_INFO.address}</li>
-                  <li><strong>Working Hours</strong>: {CONTACT_INFO.workingHours}</li>
+                  <li><strong>Email</strong>: {contact.email}</li>
+                  <li><strong>Phone</strong>: {contact.phone}</li>
+                  <li><strong>Address</strong>: {contact.address}</li>
+                  <li><strong>Working Hours</strong>: {contact.workingHours}</li>
                 </ul>
               </>
             )}

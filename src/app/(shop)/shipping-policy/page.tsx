@@ -4,12 +4,15 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChevronLeft, Home, Truck } from "lucide-react";
 import { supabase } from "@/lib/api/supabase";
-import { SITE_NAME, CONTACT_INFO, FREE_SHIPPING_THRESHOLD, STANDARD_SHIPPING_CHARGE } from "@/lib/constants";
+import { SITE_NAME, FREE_SHIPPING_THRESHOLD, STANDARD_SHIPPING_CHARGE } from "@/lib/constants";
 import { getShippingConfig } from "@/lib/api/db";
+import { useApp } from "@/store";
 
 export default function ShippingPolicyPage() {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
+  const { state } = useApp();
+  const contact = state.contact;
   const [shippingConfig, setShippingConfig] = useState({ freeThreshold: FREE_SHIPPING_THRESHOLD, standardCharge: STANDARD_SHIPPING_CHARGE });
 
   useEffect(() => {
@@ -145,9 +148,9 @@ export default function ShippingPolicyPage() {
             <h3>9. Contact Us</h3>
             <p>For shipping-related inquiries, please contact us:</p>
             <ul>
-              <li><strong>Phone</strong>: {CONTACT_INFO.phone}</li>
-              <li><strong>Email</strong>: {CONTACT_INFO.email}</li>
-              <li><strong>Working Hours</strong>: {CONTACT_INFO.workingHours}</li>
+              <li><strong>Phone</strong>: {contact.phone}</li>
+              <li><strong>Email</strong>: {contact.email}</li>
+              <li><strong>Working Hours</strong>: {contact.workingHours}</li>
             </ul>
           </div>
         )}

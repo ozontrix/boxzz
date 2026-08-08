@@ -4,10 +4,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChevronLeft, Home, Shield } from "lucide-react";
 import { supabase } from "@/lib/api/supabase";
-import { SITE_NAME, CONTACT_INFO } from "@/lib/constants";
+import { useApp } from "@/store";
+import { SITE_NAME } from "@/lib/constants";
 
 export default function PrivacyPolicyPage() {
   const [content, setContent] = useState("");
+  const { state } = useApp();
+  const contact = state.contact;
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -94,9 +97,9 @@ You have the right to:
 
 If you have any questions about this privacy policy, please contact us:
 
-- **Email**: ${CONTACT_INFO.email}
-- **Phone**: ${CONTACT_INFO.phone}
-- **Address**: ${CONTACT_INFO.address}
+- **Email**: ${contact.email}
+- **Phone**: ${contact.phone}
+- **Address**: ${contact.address}
 
 ### 9. Changes to This Policy
 
@@ -212,10 +215,10 @@ We may update this privacy policy from time to time. We will notify you of any c
                 <h3>8. Contact Us</h3>
                 <p>If you have any questions, concerns, or requests regarding this privacy policy or your personal data, please contact us:</p>
                 <ul>
-                  <li><strong>Email</strong>: {CONTACT_INFO.email}</li>
-                  <li><strong>Phone</strong>: {CONTACT_INFO.phone}</li>
-                  <li><strong>Address</strong>: {CONTACT_INFO.address}</li>
-                  <li><strong>Working Hours</strong>: {CONTACT_INFO.workingHours}</li>
+                  <li><strong>Email</strong>: {contact.email}</li>
+                  <li><strong>Phone</strong>: {contact.phone}</li>
+                  <li><strong>Address</strong>: {contact.address}</li>
+                  <li><strong>Working Hours</strong>: {contact.workingHours}</li>
                 </ul>
 
                 <h3>9. Policy Updates</h3>

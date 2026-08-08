@@ -28,9 +28,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CONTACT_INFO } from "@/lib/constants";
-
-const WHATSAPP_NUMBER = "918570059569";
+import { useApp } from "@/store";
 
 const PLY_OPTIONS = [
   { value: "3-ply", label: "3 Ply (Light)", desc: "For lightweight items", icon: "📄" },
@@ -131,9 +129,9 @@ function buildWhatsAppMessage(data: FormData): string {
   return lines.join("\n");
 }
 
-function openWhatsApp(message: string) {
+function openWhatsApp(message: string, waNumber: string) {
   const encoded = encodeURIComponent(message);
-  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encoded}`;
+  const url = `https://wa.me/${waNumber}?text=${encoded}`;
   window.open(url, "_blank");
 }
 
@@ -212,6 +210,10 @@ function FormCard({
 }
 
 export default function CustomPackagingPage() {
+  const { state } = useApp();
+  const contact = state.contact;
+  const waNumber =
+    "91" + contact.phone.replace(/\D/g, "").replace(/^0+/, "").replace(/^91/, "");
   const [step, setStep] = useState<FormStep>("contact");
   const [form, setForm] = useState<FormData>(INITIAL_FORM);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
@@ -271,7 +273,7 @@ export default function CustomPackagingPage() {
 
   const handleSubmit = () => {
     const message = buildWhatsAppMessage(form);
-    openWhatsApp(message);
+    openWhatsApp(message, waNumber);
   };
 
   const steps = [
@@ -809,7 +811,7 @@ export default function CustomPackagingPage() {
           </span>
           <span className="flex items-center gap-1">
             <Phone className="w-3.5 h-3.5" />
-            {CONTACT_INFO.phone}
+            {contact.phone}
           </span>
         </div>
       </div>

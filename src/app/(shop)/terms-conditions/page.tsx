@@ -4,10 +4,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChevronLeft, Home, Scale } from "lucide-react";
 import { supabase } from "@/lib/api/supabase";
-import { SITE_NAME, CONTACT_INFO } from "@/lib/constants";
+import { useApp } from "@/store";
+import { SITE_NAME } from "@/lib/constants";
 
 export default function TermsConditionsPage() {
   const [content, setContent] = useState("");
+  const { state } = useApp();
+  const contact = state.contact;
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -78,9 +81,9 @@ export default function TermsConditionsPage() {
             <h3>2. Business Information</h3>
             <ul>
               <li><strong>Business Name</strong>: Anmol Packaging</li>
-              <li><strong>Address</strong>: {CONTACT_INFO.address}</li>
-              <li><strong>Phone</strong>: {CONTACT_INFO.phone}</li>
-              <li><strong>Email</strong>: {CONTACT_INFO.email}</li>
+              <li><strong>Address</strong>: {contact.address}</li>
+              <li><strong>Phone</strong>: {contact.phone}</li>
+              <li><strong>Email</strong>: {contact.email}</li>
               <li><strong>GSTIN</strong>: Applicable GST will be charged on all invoices as per government regulations</li>
             </ul>
 
@@ -140,9 +143,9 @@ export default function TermsConditionsPage() {
             <h3>11. Contact Information</h3>
             <p>For any questions or concerns regarding these terms, please contact us:</p>
             <ul>
-              <li><strong>Email</strong>: {CONTACT_INFO.email}</li>
-              <li><strong>Phone</strong>: {CONTACT_INFO.phone}</li>
-              <li><strong>Address</strong>: {CONTACT_INFO.address}</li>
+              <li><strong>Email</strong>: {contact.email}</li>
+              <li><strong>Phone</strong>: {contact.phone}</li>
+              <li><strong>Address</strong>: {contact.address}</li>
             </ul>
           </div>
         )}

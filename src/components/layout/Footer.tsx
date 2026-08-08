@@ -25,14 +25,17 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { SITE_NAME, CONTACT_INFO } from "@/lib/constants";
+import { SITE_NAME } from "@/lib/constants";
 import { getAllCategories } from "@/lib/api/db";
 import type { Category } from "@/types";
+import { useApp } from "@/store";
 
 const EXCLUDED_PATHS = ["/cart", "/checkout", "/wishlist"];
 
 export function Footer() {
   const pathname = usePathname();
+  const { state } = useApp();
+  const contact = state.contact;
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
@@ -57,11 +60,15 @@ export function Footer() {
     setExpandedSection(expandedSection === id ? null : id);
   };
 
+  // WhatsApp number derived from the admin-configured contact phone
+  const waNumber =
+    "91" + contact.phone.replace(/\D/g, "").replace(/^0+/, "").replace(/^91/, "");
+
   const handleBulkOrder = () => {
     const message = encodeURIComponent(
       "Hi Boxzz! I'm interested in a bulk order. Please share the price list and minimum order quantities."
     );
-    window.open(`https://wa.me/918570059569?text=${message}`, "_blank");
+    window.open(`https://wa.me/${waNumber}?text=${message}`, "_blank");
   };
 
   const handleEmailSubmit = (e: React.FormEvent) => {
@@ -72,7 +79,7 @@ export function Footer() {
       `Hi Boxzz Team,\n\nI'd like to get a price list and more information about your products for bulk ordering.\n\nMy Email: ${email.trim()}\n\nPlease send the details at your earliest convenience.\n\nThanks!`
     );
     window.open(
-      `mailto:${CONTACT_INFO.email}?subject=${subject}&body=${body}`,
+      `mailto:${contact.email}?subject=${subject}&body=${body}`,
       "_blank"
     );
     setEmail("");
@@ -80,7 +87,7 @@ export function Footer() {
 
   const handleContactWhatsApp = () => {
     const message = encodeURIComponent("Hi Boxzz! I have a question.");
-    window.open(`https://wa.me/918570059569?text=${message}`, "_blank");
+    window.open(`https://wa.me/${waNumber}?text=${message}`, "_blank");
   };
 
   // Footer link groups
@@ -128,7 +135,7 @@ export function Footer() {
                 <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </button>
               <a
-                href={`tel:${CONTACT_INFO.phone.replace(/\s/g, "")}`}
+                href={`tel:${contact.phone.replace(/\s/g, "")}`}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-white/10 text-white font-medium rounded-xl hover:bg-white/20 transition-colors border border-white/20 text-sm"
               >
                 <Phone className="w-4 h-4" />
@@ -285,10 +292,10 @@ export function Footer() {
                   <div>
                     <p className="text-xs text-zinc-400">Phone</p>
                     <a
-                      href={`tel:${CONTACT_INFO.phone.replace(/\s/g, "")}`}
+                      href={`tel:${contact.phone.replace(/\s/g, "")}`}
                       className="text-white hover:text-primary transition-colors font-medium"
                     >
-                      {CONTACT_INFO.phone}
+                      {contact.phone}
                     </a>
                   </div>
                 </li>
@@ -299,10 +306,10 @@ export function Footer() {
                   <div>
                     <p className="text-xs text-zinc-400">Email</p>
                     <a
-                      href={`mailto:${CONTACT_INFO.email}`}
+                      href={`mailto:${contact.email}`}
                       className="text-white hover:text-primary transition-colors font-medium break-all"
                     >
-                      {CONTACT_INFO.email}
+                      {contact.email}
                     </a>
                   </div>
                 </li>
@@ -312,7 +319,7 @@ export function Footer() {
                   </div>
                   <div>
                     <p className="text-xs text-zinc-400">Address</p>
-                    <p className="text-white leading-snug">{CONTACT_INFO.address}</p>
+                    <p className="text-white leading-snug">{contact.address}</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-3 text-sm text-zinc-500">
@@ -321,7 +328,7 @@ export function Footer() {
                   </div>
                   <div>
                     <p className="text-xs text-zinc-400">Working Hours</p>
-                    <p className="text-white">{CONTACT_INFO.workingHours}</p>
+                    <p className="text-white">{contact.workingHours}</p>
                   </div>
                 </li>
               </ul>
@@ -439,23 +446,23 @@ export function Footer() {
                   <div className="space-y-3">
                     <div className="flex items-start gap-2.5 text-sm text-zinc-400">
                       <Phone className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <a href={`tel:${CONTACT_INFO.phone.replace(/\s/g, "")}`} className="hover:text-primary transition-colors">
-                        {CONTACT_INFO.phone}
+                      <a href={`tel:${contact.phone.replace(/\s/g, "")}`} className="hover:text-primary transition-colors">
+                        {contact.phone}
                       </a>
                     </div>
                     <div className="flex items-start gap-2.5 text-sm text-zinc-400">
                       <Mail className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <a href={`mailto:${CONTACT_INFO.email}`} className="hover:text-primary transition-colors break-all">
-                        {CONTACT_INFO.email}
+                      <a href={`mailto:${contact.email}`} className="hover:text-primary transition-colors break-all">
+                        {contact.email}
                       </a>
                     </div>
                     <div className="flex items-start gap-2.5 text-sm text-zinc-400">
                       <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <span>{CONTACT_INFO.address}</span>
+                      <span>{contact.address}</span>
                     </div>
                     <div className="flex items-start gap-2.5 text-sm text-zinc-400">
                       <Clock className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <span>{CONTACT_INFO.workingHours}</span>
+                      <span>{contact.workingHours}</span>
                     </div>
 
                     {/* Mobile Email Form */}

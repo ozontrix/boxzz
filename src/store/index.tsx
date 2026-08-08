@@ -9,6 +9,7 @@ import React, {
   ReactNode,
 } from "react";
 import type { CartItem, Product, Address, User, Order, OrderStatus, ProductVariant } from "@/types";
+import { CONTACT_INFO } from "@/lib/constants";
 import {
   getCurrentSession,
   signIn as apiSignIn,
@@ -16,7 +17,7 @@ import {
   signOut as apiSignOut,
   resendVerificationEmail as apiResendVerificationEmail,
 } from "@/lib/api/auth";
-import { getShippingConfig, type ShippingConfig } from "@/lib/api/db";
+import { getShippingConfig, type ShippingConfig, getContactInfo, type ContactInfo } from "@/lib/api/db";
 import {
   getUserAddresses,
   addAddress as apiAddAddress,
@@ -62,6 +63,7 @@ interface AppState {
   checkoutAddress: Address | null;
   orders: Order[];
   savedAddresses: Address[];
+  contact: ContactInfo;
 }
 
 type Action =
@@ -87,6 +89,7 @@ type Action =
   | { type: "REMOVE_ADDRESS"; payload: { addressId: string } }
   | { type: "SET_DEFAULT_ADDRESS"; payload: { addressId: string } }
   | { type: "SET_ADDRESSES"; payload: Address[] }
+  | { type: "CONTACT_SET"; payload: ContactInfo }
   | { type: "HYDRATE"; payload: Partial<AppState> };
 
 const STORAGE_KEY = "boxzz_store";
@@ -184,6 +187,7 @@ const initialState: AppState = {
   checkoutAddress: null,
   orders: [],
   savedAddresses: [],
+  contact: { ...CONTACT_INFO },
 };
 
 function appReducer(state: AppState, action: Action): AppState {
@@ -394,6 +398,12 @@ function appReducer(state: AppState, action: Action): AppState {
         savedAddresses: action.payload,
       };
 
+    case "CONTACT_SET":
+      return {
+        ...state,
+        contact: action.payload,
+      };
+
     case "HYDRATE":
       return {
         ...state,
@@ -483,6 +493,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  // Fetch live contact info from DB on mount so the header, footer
+  // & all shop pages show the admin-configured values
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const contact = await getContactInfo();
+      if (!cancelled) {
+        dispatch({ type: "CONTACT_SET", payload: contact });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
 
   // Sync wishlist to localStorage
   useEffect(() => {

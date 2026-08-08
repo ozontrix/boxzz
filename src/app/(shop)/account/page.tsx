@@ -38,7 +38,7 @@ import {
   MailCheck,
 } from "lucide-react";
 import { cn, formatPrice, formatDate } from "@/lib/utils";
-import { INDIAN_STATES, CONTACT_INFO } from "@/lib/constants";
+import { INDIAN_STATES } from "@/lib/constants";
 import { useApp } from "@/store";
 import type { Address, Order, OrderStatus } from "@/types";
 import { updatePassword, sendPasswordResetEmail, updateProfile } from "@/lib/api/auth";
@@ -399,6 +399,7 @@ function AddressCard({
 export default function AccountPage() {
   const { state, dispatch, logout, showToast, addAddress, updateAddress, removeAddress, setDefaultAddress, refreshUserData } = useApp();
   const { isAuthenticated, user } = state.auth;
+  const contact = state.contact;
   const [activeTab, setActiveTab] = useState<Tab>("orders");
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
@@ -1133,7 +1134,7 @@ export default function AccountPage() {
                 Get manufacturer-direct pricing, GST invoices, and dedicated account management for orders above ₹10,000.
               </p>
               <button
-                onClick={() => showToast("info", "Business Account", "Contact us at " + CONTACT_INFO.phone)}
+                onClick={() => showToast("info", "Business Account", "Contact us at " + contact.phone)}
                 className="mt-2 text-xs font-medium text-primary hover:text-primary-dark transition-colors"
               >
                 Talk to our team &rarr;
@@ -1145,11 +1146,11 @@ export default function AccountPage() {
               <div className="space-y-2 text-xs text-zinc-600">
                 <div className="flex items-center gap-2">
                   <Phone className="w-3.5 h-3.5 text-primary" />
-                  {CONTACT_INFO.phone}
+                  {contact.phone}
                 </div>
                 <div className="flex items-center gap-2">
                   <Mail className="w-3.5 h-3.5 text-primary" />
-                  {CONTACT_INFO.email}
+                  {contact.email}
                 </div>
               </div>
             </div>

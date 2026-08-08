@@ -398,15 +398,43 @@ export async function adminGetDashboardStats() {
   const totalProducts = (products ?? []).length;
   const totalCategories = (categories ?? []).length;
 
+  const recentOrders = (orders ?? [])
+    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5);
+
+  // Include per-order item counts for the recent orders list
+  const itemCountMap: Record<string, number> = {};
+  if (recentOrders.length > 0) {
+    const { data: items, error: itemsError } = await supabase
+      .from("order_items")
+      .select("order_id, quantity")
+      .in(
+        "order_id",
+        recentOrders.map((o) => o.id)
+      );
+    if (!itemsError && items) {
+      for (const item of items) {
+        itemCountMap[item.order_id] =
+          (itemCountMap[item.order_id] || 0) + (item.quantity || 1);
+      }
+    }
+  }
+
   return {
     totalRevenue,
     totalOrders,
     pendingOrders,
     totalProducts,
     totalCategories,
-    recentOrders: (orders ?? [])
-      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 5),
+    recentOrders: recentOrders.map((o: any) => ({
+      ...o,
+      customerName:
+        o.shipping_address?.full_name ||
+        o.shipping_address?.fullName ||
+        o.shipping_address?.name ||
+        "Guest",
+      itemCount: itemCountMap[o.id] || 0,
+    })),
   };
 }
 

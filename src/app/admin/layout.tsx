@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { AdminProvider, useAdmin } from "@/store/adminStore";
 import { AppProvider } from "@/store";
@@ -46,14 +47,15 @@ function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
         } lg:translate-x-0 lg:static lg:z-auto flex flex-col`}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center gap-3 px-6 border-b border-zinc-100">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-bold text-sm">
-            B
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-zinc-900 leading-tight">Boxzz Admin</h1>
-            <p className="text-[10px] text-zinc-400 uppercase tracking-wider">Management Panel</p>
-          </div>
+        <div className="h-16 flex items-center px-6 border-b border-zinc-100">
+          <Image
+            src="/boxzz_final_logo.png"
+            alt="Boxzz"
+            width={975}
+            height={294}
+            className="h-8 w-auto object-contain"
+            priority
+          />
         </div>
 
         {/* Navigation */}
@@ -135,12 +137,6 @@ function AdminHeader({ onMenuClick }: { onMenuClick: () => void }) {
           <div className="w-2 h-2 rounded-full bg-green-500" />
           <span>System Online</span>
         </div>
-        <button className="p-2 rounded-xl hover:bg-zinc-100 transition-colors relative">
-          <svg className="w-5 h-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 border-2 border-white" />
-        </button>
       </div>
     </header>
   );

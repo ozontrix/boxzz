@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { mapOrder } from "./map-order";
+import { CONTACT_INFO } from "@/lib/constants";
 import type { Product, Category, Banner, Address, Order, CartItem } from "@/types";
 
 // ─── Product Mapping ──────────────────────────────────────────────
@@ -396,6 +397,42 @@ export interface ShippingConfig {
     min_days: number;
     max_days: number;
   }>;
+}
+
+export interface ContactInfo {
+  phone: string;
+  email: string;
+  address: string;
+  workingHours: string;
+}
+
+/**
+ * Fetch admin-configured contact details from site_settings
+ * (the "Contact" tab in the admin portal). Falls back to the built-in
+ * defaults when the DB is unreachable or values are empty.
+ */
+export async function getContactInfo(): Promise<ContactInfo> {
+  try {
+    const { data, error } = await supabase
+      .from("site_settings")
+      .select("key, value")
+      .in("key", ["contact_phone", "contact_email", "contact_address", "working_hours"]);
+
+    const map: Record<string, string> = {};
+    if (!error && data) {
+      for (const row of data) map[row.key] = row.value || "";
+    }
+
+    return {
+      phone: map.contact_phone || CONTACT_INFO.phone,
+      email: map.contact_email || CONTACT_INFO.email,
+      address: map.contact_address || CONTACT_INFO.address,
+      workingHours: map.working_hours || CONTACT_INFO.workingHours,
+    };
+  } catch (e) {
+    console.error("getContactInfo error:", e);
+    return { ...CONTACT_INFO };
+  }
 }
 
 export async function getShippingConfig(): Promise<ShippingConfig> {

@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { SITE_NAME, CONTACT_INFO } from "@/lib/constants";
+import { SITE_NAME } from "@/lib/constants";
 import { getAllCategories } from "@/lib/api/db";
 import type { Category } from "@/types";
 import { CartIcon } from "../ui/CartIcon";
@@ -31,6 +31,7 @@ import { usePWA } from "@/components/ui/PWAProvider";
 export function Header() {
   const { state, logout } = useApp();
   const { isAuthenticated, user, isLoading } = state.auth;
+  const contact = state.contact;
   const { isInstallable, isInstalled, isIos, handleInstall } = usePWA();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -62,11 +63,11 @@ export function Header() {
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">
               <Package className="w-3 h-3" />
-              {CONTACT_INFO.workingHours}
+              {contact.workingHours}
             </span>
             <span className="flex items-center gap-1">
               <Phone className="w-3 h-3" />
-              {CONTACT_INFO.phone}
+              {contact.phone}
             </span>
           </div>
           <div className="flex items-center gap-4">
@@ -358,8 +359,8 @@ export function Header() {
 
               {/* Footer */}
               <div className="p-4 border-t border-zinc-100 bg-zinc-50">
-                <p className="text-xs text-zinc-500">{CONTACT_INFO.phone}</p>
-                <p className="text-xs text-zinc-500">{CONTACT_INFO.email}</p>
+                <p className="text-xs text-zinc-500">{contact.phone}</p>
+                <p className="text-xs text-zinc-500">{contact.email}</p>
               </div>
             </div>
           </motion.div>

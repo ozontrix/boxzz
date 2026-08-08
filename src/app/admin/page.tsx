@@ -41,36 +41,77 @@ function StatCard({
 }
 
 // ─── Recent Order Row ─────────────────────────────────────────
+function getTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return "Just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
 function RecentOrderRow({ order }: { order: any }) {
   const statusColors: Record<string, string> = {
-    confirmed: "bg-blue-100 text-blue-700",
-    "in-production": "bg-amber-100 text-amber-700",
-    shipped: "bg-purple-100 text-purple-700",
-    "out-for-delivery": "bg-indigo-100 text-indigo-700",
-    delivered: "bg-emerald-100 text-emerald-700",
-    cancelled: "bg-red-100 text-red-700",
-    returned: "bg-rose-100 text-rose-700",
+    confirmed: "bg-blue-50 text-blue-700 ring-blue-100",
+    "in-production": "bg-amber-50 text-amber-700 ring-amber-100",
+    shipped: "bg-purple-50 text-purple-700 ring-purple-100",
+    "out-for-delivery": "bg-indigo-50 text-indigo-700 ring-indigo-100",
+    delivered: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+    cancelled: "bg-red-50 text-red-700 ring-red-100",
+    returned: "bg-rose-50 text-rose-700 ring-rose-100",
   };
 
+  const customerName = order.customerName || "Guest";
+  const initial = (customerName.charAt(0) || "G").toUpperCase();
+  const createdAt = order.created_at ? new Date(order.created_at) : null;
+  const dateLabel = createdAt
+    ? createdAt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+    : "—";
+  const timeAgo = createdAt ? getTimeAgo(createdAt) : "";
+  const itemCount = order.itemCount || 0;
+  const paymentMethod =
+    order.payment_method === "online" ? "Online" : order.payment_method || "";
+
   return (
-    <div className="flex items-center justify-between py-3 border-b border-zinc-50 last:border-0">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-zinc-100 flex items-center justify-center text-sm font-medium text-zinc-600">
-          #{order.id?.slice(-4) || "N/A"}
+    <div className="group flex items-center gap-3 py-3.5 px-2 -mx-2 rounded-xl border-b border-zinc-50 last:border-0 hover:bg-zinc-50/80 transition-colors">
+      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
+        {initial}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-zinc-800 truncate">{customerName}</p>
+          <span className="text-[10px] text-zinc-400 font-mono shrink-0">#{order.id?.slice(-6) || "N/A"}</span>
         </div>
-        <div>
-          <p className="text-sm font-medium text-zinc-800">₹{order.total?.toLocaleString() || "0"}</p>
-          <p className="text-xs text-zinc-400">{order.status || "Unknown"}</p>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-400 mt-0.5">
+          <span>{dateLabel}</span>
+          {timeAgo && (
+            <>
+              <span className="text-zinc-300">•</span>
+              <span>{timeAgo}</span>
+            </>
+          )}
+          {itemCount > 0 && (
+            <>
+              <span className="text-zinc-300">•</span>
+              <span>{itemCount} item{itemCount > 1 ? "s" : ""}</span>
+            </>
+          )}
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-wider ${statusColors[order.status] || "bg-zinc-100 text-zinc-600"}`}>
-          {order.status || "unknown"}
-        </span>
-        <span className="text-xs text-zinc-400">
-          {order.created_at ? new Date(order.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : ""}
-        </span>
+      <div className="text-right shrink-0">
+        <p className="text-sm font-bold text-zinc-900">₹{(order.total || 0).toLocaleString()}</p>
+        {paymentMethod && <p className="text-[10px] text-zinc-400 mt-0.5">{paymentMethod}</p>}
       </div>
+      <span
+        className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ring-1 shrink-0 ${
+          statusColors[order.status] || "bg-zinc-100 text-zinc-600 ring-zinc-100"
+        }`}
+      >
+        {(order.status || "unknown").replace(/-/g, " ")}
+      </span>
     </div>
   );
 }
