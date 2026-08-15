@@ -135,7 +135,8 @@ export default function AdminBannersPage() {
       const { data, error } = await supabase.storage
         .from('banner-images')
         .upload(fileName, file, {
-          cacheControl: '3600',
+          // Unique immutable filenames — long browser/CDN caching is safe.
+          cacheControl: '31536000',
           upsert: false,
         });
 

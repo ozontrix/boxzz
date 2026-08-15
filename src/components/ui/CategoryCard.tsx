@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { memo } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Package } from "lucide-react";
 import type { Category, FeaturedCategory } from "@/types";
+import { OptimizedImage } from "./OptimizedImage";
 
 type CardCategory = Pick<Category, "id" | "name" | "icon" | "image" | "shortDescription" | "productCount">;
 
@@ -62,12 +62,16 @@ function CategoryCardBase({ category, index = 0, href }: CategoryCardProps) {
       >
         {/* ─── Image Container ─── */}
         <div className="relative aspect-[4/3] overflow-hidden bg-zinc-100">
-          <Image
+          <OptimizedImage
             src={category.image}
             alt={category.name}
             fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            mode="direct"
+            // Category imagery is either already pre-optimized (200px WebP on
+            // the CDN) or a Supabase original we can transform on Supabase.
+            transformWidth={640}
             className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+            loading="lazy"
             decoding="async"
           />
 

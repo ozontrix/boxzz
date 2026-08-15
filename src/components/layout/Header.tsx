@@ -17,7 +17,7 @@ import {
   LogOut,
   Download,
 } from "lucide-react";
-import Image from "next/image";
+import { SiteLogo } from "@/components/ui/SiteLogo";
 import { cn } from "@/lib/utils";
 import { SITE_NAME } from "@/lib/constants";
 import { getAllCategories } from "@/lib/api/db";
@@ -92,14 +92,7 @@ export function Header() {
 
           {/* Logo - 1099x306 native aspect ratio */}
           <Link href="/" className="flex items-center shrink-0">
-            <Image
-              src="/boxzz_final_logo.png"
-              alt="Boxzz Logo"
-              width={1099}
-              height={306}
-              className="w-40 sm:w-44 md:w-48 h-auto object-contain"
-              priority
-            />
+            <SiteLogo className="w-40 sm:w-44 md:w-48 h-auto object-contain" />
           </Link>
 
           {/* Search Bar - Desktop */}
@@ -247,13 +240,7 @@ export function Header() {
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-zinc-100">
                 <div className="flex items-center">
-                  <Image
-                    src="/boxzz_final_logo.png"
-                    alt="Boxzz Logo"
-                    width={100}
-                    height={32}
-                    className="w-24 h-auto object-contain"
-                  />
+                  <SiteLogo className="w-24 h-auto object-contain" />
                 </div>
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
+import { SiteLogo } from "@/components/ui/SiteLogo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -154,13 +154,7 @@ export function Footer() {
             {/* Brand Column - 4 cols */}
             <div className="col-span-4">
               <Link href="/" className="inline-block">
-                <Image
-                  src="/boxzz_final_logo.png"
-                  alt={`${SITE_NAME} Logo`}
-                  width={160}
-                  height={50}
-                  className="w-36 h-auto object-contain brightness-0 invert"
-                />
+                <SiteLogo alt={`${SITE_NAME} Logo`} className="w-36 h-auto object-contain brightness-0 invert" />
               </Link>
               <p className="mt-4 text-sm text-zinc-500 leading-relaxed max-w-sm">
                 India's trusted manufacturer of corrugated boxes, packaging tapes, bubble wrap, and custom packaging solutions. Serving businesses across India with premium quality and manufacturer-direct pricing.
@@ -349,13 +343,7 @@ export function Footer() {
             {/* Brand */}
             <div className="pb-6 border-b border-zinc-800 mb-4">
               <Link href="/" className="inline-block">
-                <Image
-                  src="/boxzz_final_logo.png"
-                  alt={`${SITE_NAME} Logo`}
-                  width={140}
-                  height={44}
-                  className="w-28 h-auto object-contain brightness-0 invert"
-                />
+                <SiteLogo alt={`${SITE_NAME} Logo`} className="w-28 h-auto object-contain brightness-0 invert" />
               </Link>
               <p className="mt-3 text-xs text-zinc-500 leading-relaxed">
                 India's trusted manufacturer of corrugated boxes & packaging materials.
@@ -532,13 +520,7 @@ export function Footer() {
           </span>
           <span className="hidden sm:inline text-zinc-700">•</span>
           <span>Powered by</span>
-          <Image
-            src="/razorpay_white.png"
-            alt="Razorpay"
-            width={80}
-            height={17}
-            className="h-4 w-auto object-contain"
-          />
+          <img src="/razorpay_white.png" alt="Razorpay" width={80} height={17} loading="lazy" decoding="async" className="h-4 w-auto object-contain" />
         </div>
       </div>
 

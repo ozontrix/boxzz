@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBanners } from "@/lib/api/db";
 import type { Banner } from "@/types";
+import { OptimizedImage } from "./OptimizedImage";
 
 export function HeroBanner() {
   const [current, setCurrent] = useState(0);
@@ -67,10 +67,11 @@ export function HeroBanner() {
             className="absolute inset-0"
           >
             {/* Background Image */}
-            <Image
+            <OptimizedImage
               src={banner.image}
               alt={banner.title}
               fill
+              mode="optimize"
               priority
               sizes="100vw"
               className="object-cover"

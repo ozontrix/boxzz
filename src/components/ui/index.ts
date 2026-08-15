@@ -1,6 +1,8 @@
 export { ProductCard } from "./ProductCard";
 export { CategoryCard } from "./CategoryCard";
 export { HeroBanner } from "./HeroBanner";
+export { OptimizedImage } from "./OptimizedImage";
+export { SiteLogo } from "./SiteLogo";
 export { MarqueeStrip } from "./MarqueeStrip";
 export { BottomTabBar } from "./BottomTabBar";
 export { SearchBar } from "./SearchBar";

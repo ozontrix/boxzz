@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
     ],
     // Cap the maximum device width so large images aren't requested needlessly
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    // Images rarely change after upload; cache optimized variants for 30 days
+    // so repeat visitors don't re-trigger Vercel Image Transformations.
+    minimumCacheTTL: 60 * 60 * 24 * 30,
   },
   experimental: {
     optimizePackageImports: ["@/components/ui", "@/components/layout", "lucide-react", "framer-motion"],

@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
-import Image from "next/image";
+import { OptimizedImage } from "./OptimizedImage";
 
 interface ImageGalleryProps {
   images: string[];
@@ -81,11 +81,17 @@ export function ImageGallery({ images, productName, category }: ImageGalleryProp
             className="absolute inset-0"
           >
             {currentImage ? (
-              <Image
+              <OptimizedImage
                 src={currentImage}
                 alt={`${productName} view ${selectedImage + 1}`}
                 fill
+                mode="auto"
+                // The main product image is large and responsive: keep next/image
+                // for Supabase originals (resize + WebP/AVIF on Vercel). Images
+                // that are already pre-optimized on a remote CDN are served
+                // directly instead of being re-transformed.
                 sizes="(max-width: 640px) 100vw, 50vw"
+                priority={selectedImage === 0}
                 className={cn(
                   "object-contain transition-transform duration-200 p-4",
                   isZoomed && "scale-150"
@@ -170,11 +176,14 @@ export function ImageGallery({ images, productName, category }: ImageGalleryProp
               )}
             >
               {img ? (
-                <Image
+                <OptimizedImage
                   src={img}
                   alt={`${productName} thumbnail ${idx + 1}`}
                   fill
-                  sizes="64px"
+                  mode="direct"
+                  // 64px thumbnails: direct delivery, transformed on Supabase CDN
+                  // rather than by Vercel.
+                  transformWidth={160}
                   className="object-cover"
                   loading="lazy"
                   decoding="async"

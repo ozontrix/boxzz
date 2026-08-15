@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { SiteLogo } from "@/components/ui/SiteLogo";
 import { usePathname } from "next/navigation";
 import { AdminProvider, useAdmin } from "@/store/adminStore";
 import { AppProvider } from "@/store";
@@ -48,14 +48,7 @@ function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
       >
         {/* Logo */}
         <div className="h-16 flex items-center px-6 border-b border-zinc-100">
-          <Image
-            src="/boxzz_final_logo.png"
-            alt="Boxzz"
-            width={975}
-            height={294}
-            className="h-8 w-auto object-contain"
-            priority
-          />
+          <SiteLogo alt="Boxzz" className="h-8 w-auto object-contain" />
         </div>
 
         {/* Navigation */}

@@ -759,7 +759,7 @@ export function ProductFormModal({ open, editingProduct, categories, onClose, on
                       const fileName = `product-${Date.now()}-${i}.${ext}`;
                       const { data, error } = await supabase.storage
                         .from('product-images')
-                        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+                        .upload(fileName, file, { cacheControl: '31536000', upsert: false });
                       if (error) {
                         alert('Upload failed: ' + error.message);
                         continue;

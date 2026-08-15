@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { SiteLogo } from "@/components/ui/SiteLogo";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, AlertCircle, CheckCircle, KeyRound, Eye, EyeOff, RefreshCcw, ShieldAlert } from "lucide-react";
@@ -79,7 +79,7 @@ export default function ResetPasswordPage() {
         </Link>
 
         <Link href="/" className="flex items-center mb-6">
-          <Image src="/boxzz_final_logo.png" alt="Boxzz Logo" width={140} height={44} className="w-32 h-auto object-contain" />
+          <SiteLogo className="w-32 h-auto object-contain" />
         </Link>
 
         <AnimatePresence mode="wait">

@@ -2,12 +2,12 @@
 
 import { memo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { Heart, ShoppingCart, Eye, Check } from "lucide-react";
 import { cn, formatPrice, calculateDiscount } from "@/lib/utils";
 import type { Product, ProductVariant } from "@/types";
 import { useApp } from "@/store";
+import { OptimizedImage } from "./OptimizedImage";
 import { PackSizeSelector } from "./PackSizeSelector";
 
 interface ProductCardProps {
@@ -76,11 +76,15 @@ function ProductCardBase({ product, index = 0 }: ProductCardProps) {
             onMouseLeave={() => hasSlider && setCurrentImageIndex(0)}
           >
             {product.images?.[currentImageIndex] ? (
-              <Image
+              <OptimizedImage
                 src={product.images[currentImageIndex]}
                 alt={product.name}
                 fill
-                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                mode="direct"
+                // Product-card images are small repeated thumbnails: serve them
+                // directly (Supabase render endpoint or pre-optimized CDN)
+                // instead of spending a Vercel Image Transformation per card.
+                transformWidth={640}
                 className="object-cover group-hover:scale-105 transition-transform duration-700"
                 loading="lazy"
                 decoding="async"

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import {
   Grid3X3,
   ChevronRight,
@@ -126,11 +126,12 @@ export default function CategoriesPage() {
                 >
                   {/* Group Image */}
                   <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden shrink-0 bg-zinc-100">
-                    <Image
+                    <OptimizedImage
                       src={group.image}
                       alt={group.name}
                       fill
-                      sizes="64px"
+                      mode="direct"
+                      transformWidth={256}
                       className="object-cover"
                       loading="lazy"
                       decoding="async"

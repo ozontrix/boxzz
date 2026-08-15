@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import {
   ShoppingBag,
   Trash2,
@@ -154,11 +154,13 @@ export default function CartPage() {
                     {/* Image */}
                     <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-gradient-to-br from-zinc-50 to-zinc-100 flex items-center justify-center text-2xl sm:text-3xl shrink-0 border border-zinc-100 overflow-hidden">
                       {item.image && !item.image.startsWith("📦") ? (
-                        <Image
+                        <OptimizedImage
                           src={item.image}
                           alt={item.name}
                           width={160}
                           height={160}
+                          mode="direct"
+                          transformWidth={256}
                           className="w-full h-full object-cover"
                           loading="lazy"
                           decoding="async"
