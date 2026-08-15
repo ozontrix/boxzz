@@ -114,6 +114,11 @@ export function OptimizedImage({
   decoding,
   transformWidth,
 }: OptimizedImageProps) {
+  // Some records in the DB store an empty image string (e.g. a category with
+  // no photo yet). Render nothing instead of an <img src=""> so the browser
+  // doesn't try to re-fetch the current page.
+  if (!src) return null;
+
   const effectiveMode: ImageMode =
     mode === "auto" ? (isPreOptimizedRemote(src) ? "direct" : "optimize") : mode;
 

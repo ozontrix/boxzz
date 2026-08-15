@@ -85,7 +85,10 @@ function ProductCardBase({ product, index = 0 }: ProductCardProps) {
                 // directly (Supabase render endpoint or pre-optimized CDN)
                 // instead of spending a Vercel Image Transformation per card.
                 transformWidth={640}
-                className="object-cover group-hover:scale-105 transition-transform duration-700"
+                // object-contain keeps the whole product photo visible inside
+                // the 3/4 card frame (object-cover was cropping the sides of
+                // the portrait source images).
+                className="object-contain p-1.5 group-hover:scale-105 transition-transform duration-700"
                 loading="lazy"
                 decoding="async"
               />

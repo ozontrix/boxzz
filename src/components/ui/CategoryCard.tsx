@@ -62,18 +62,24 @@ function CategoryCardBase({ category, index = 0, href }: CategoryCardProps) {
       >
         {/* ─── Image Container ─── */}
         <div className="relative aspect-[4/3] overflow-hidden bg-zinc-100">
-          <OptimizedImage
-            src={category.image}
-            alt={category.name}
-            fill
-            mode="direct"
-            // Category imagery is either already pre-optimized (200px WebP on
-            // the CDN) or a Supabase original we can transform on Supabase.
-            transformWidth={640}
-            className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
-            loading="lazy"
-            decoding="async"
-          />
+          {category.image ? (
+            <OptimizedImage
+              src={category.image}
+              alt={category.name}
+              fill
+              mode="direct"
+              // Category imagery is either already pre-optimized (200px WebP on
+              // the CDN) or a Supabase original we can transform on Supabase.
+              transformWidth={640}
+              className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-20 select-none">
+              {category.icon}
+            </div>
+          )}
 
           {/* Gradient Overlay */}
           <div className={`absolute inset-0 bg-gradient-to-t ${gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
