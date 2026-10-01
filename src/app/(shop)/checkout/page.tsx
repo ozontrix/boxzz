@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
@@ -12,24 +11,42 @@ import {
   Truck,
   Package,
   CheckCircle,
-  AlertCircle,
   ArrowRight,
   ShoppingBag,
   Home,
   Building2,
   Star,
-  Plus,
   User,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { INDIAN_STATES, PAYMENT_METHODS } from "@/lib/constants";
-import type { Address } from "@/types";
+import type { Address, CartItem } from "@/types";
 import { useApp } from "@/store";
 import {
   loadRazorpayCheckoutScript,
   openRazorpayCheckout,
   type RazorpayPaymentResponse,
 } from "@/lib/razorpay/client";
+
+interface RazorpayCreateOrderResponse {
+  keyId: string;
+  orderId: string;
+  boxzzOrderId: string;
+  amount: number;
+  currency: string;
+}
+
+interface RazorpayFailureResponse {
+  error?: {
+    code?: string;
+    description?: string;
+    reason?: string;
+  };
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 interface FormData {
   fullName: string;
@@ -66,16 +83,16 @@ const EMPTY_FORM: FormData = {
 };
 
 export default function CheckoutPage() {
-  const router = useRouter();
   const { state, clearCart, showToast, addOrder, addAddress, refreshUserData } = useApp();
   const [step, setStep] = useState<"address" | "payment" | "confirm">("address");
   const [selectedPayment, setSelectedPayment] = useState("online");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [placedTotal, setPlacedTotal] = useState(0);
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | null>(null);
-  // Razorpay "Online Mode" flow state
-  const [placedPayment, setPlacedPayment] = useState<"online">("online");
+  // Selected payment flow shown on the order confirmation screen.
+  const [placedPayment, setPlacedPayment] = useState<"online" | "cod">("online");
   const paymentSettledRef = useRef(false);
 
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
@@ -85,7 +102,8 @@ export default function CheckoutPage() {
   // Defer live config-derived values until after hydration to prevent SSR mismatch
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    setMounted(true);
+    const timeoutId = window.setTimeout(() => setMounted(true), 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
   const gstRatePercent = mounted ? Math.round((config.gstRate || 0.12) * 100) : 12;
   const freeThreshold = mounted ? config.freeThreshold : 2499;
@@ -153,13 +171,91 @@ export default function CheckoutPage() {
     }
   };
 
+  const buildShippingAddress = (): Address => ({
+    id: `addr-${Date.now()}`,
+    label: "Home",
+    fullName: formData.fullName,
+    phone: formData.phone,
+    company: formData.company || undefined,
+    line1: formData.addressLine1,
+    line2: formData.addressLine2 || undefined,
+    city: formData.city,
+    state: formData.state,
+    pincode: formData.pincode,
+    isDefault: false,
+  });
+
+  const buildOrderItems = (): CartItem[] =>
+    items.map((item) => ({
+      productId: item.productId,
+      name: item.name,
+      price: item.price,
+      mrp: item.mrp || item.price,
+      quantity: item.quantity,
+      image: item.image,
+      variant: item.variant,
+      variantId: item.variantId,
+      variantLabel: item.variantLabel,
+      shippingWeight: item.shippingWeight,
+    }));
+
   const handlePlaceOrder = async () => {
     if (isPlacingOrder) return;
     setIsPlacingOrder(true);
 
-    // Only "Online Mode" is offered. Open the Razorpay checkout — the
-    // order is saved only after the payment is captured & verified server-side.
+    if (selectedPayment === "cod") {
+      await handleCodOrder();
+      return;
+    }
+
+    // Online Mode: open the Razorpay checkout — the order is saved only after
+    // the payment is captured & verified server-side.
     await handleOnlinePayment();
+  };
+
+  /**
+   * Cash on Delivery: create the order immediately and mark payment as pending.
+   */
+  const handleCodOrder = async () => {
+    try {
+      const codRes = await fetch("/api/orders/cod", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderData: {
+            items: buildOrderItems(),
+            total,
+            subtotal,
+            shipping,
+            gst,
+            shippingAddress: buildShippingAddress(),
+            notes: formData.notes || undefined,
+            userId: state.auth.user?.id ?? null,
+          },
+        }),
+      });
+
+      const codData = await codRes.json();
+      if (!codRes.ok) {
+        throw new Error(codData.error || "Could not place COD order. Please try again.");
+      }
+
+      if (codData.order) {
+        addOrder(codData.order);
+        setOrderId(codData.order.id);
+        setPlacedTotal(codData.order.total);
+        setOrderPlaced(true);
+        setPlacedPayment("cod");
+        clearCart();
+      } else {
+        throw new Error("Your COD order could not be created. Please try again.");
+      }
+    } catch (e: unknown) {
+      console.error("COD order error:", e);
+      showToast("error", "Order Not Placed", getErrorMessage(e, "Something went wrong. Please try again."));
+    } finally {
+      setIsPlacingOrder(false);
+    }
   };
 
   /**
@@ -174,7 +270,7 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: total, currency: "INR" }),
       });
-      const createData = await createRes.json();
+      const createData = (await createRes.json()) as RazorpayCreateOrderResponse & { error?: string };
       if (!createRes.ok) {
         throw new Error(createData.error || "Could not start payment. Please try again.");
       }
@@ -212,9 +308,9 @@ export default function CheckoutPage() {
         },
         handler: (response) => {
           paymentSettledRef.current = true;
-          handlePaymentSuccess(response, createData).catch((e: any) => {
+          handlePaymentSuccess(response, createData).catch((e: unknown) => {
             console.error("payment verify error:", e);
-            showToast("error", "Order Not Placed", (e.message || "Payment succeeded but we could not confirm your order. Please contact support with your payment reference."));
+            showToast("error", "Order Not Placed", getErrorMessage(e, "Payment succeeded but we could not confirm your order. Please contact support with your payment reference."));
             setIsPlacingOrder(false);
           });
         },
@@ -225,7 +321,7 @@ export default function CheckoutPage() {
       }
 
       // Handle payment failure reported by Razorpay
-      rzp.on("payment.failed", (resp: any) => {
+      rzp.on("payment.failed", (resp: RazorpayFailureResponse) => {
         paymentSettledRef.current = true;
         setIsPlacingOrder(false);
         const code = resp?.error?.code;
@@ -234,9 +330,9 @@ export default function CheckoutPage() {
       });
 
       rzp.open();
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("online payment error:", e);
-      showToast("error", "Payment Error", e.message || "Something went wrong. Please try again.");
+      showToast("error", "Payment Error", getErrorMessage(e, "Something went wrong. Please try again."));
       setIsPlacingOrder(false);
     }
   };
@@ -248,22 +344,8 @@ export default function CheckoutPage() {
    */
   const handlePaymentSuccess = async (
     response: RazorpayPaymentResponse,
-    createData: { boxzzOrderId: string; razorpayOrderId: string }
+    createData: Pick<RazorpayCreateOrderResponse, "boxzzOrderId">
   ) => {
-    const shippingAddress: Address = {
-      id: `addr-${Date.now()}`,
-      label: "Home",
-      fullName: formData.fullName,
-      phone: formData.phone,
-      company: formData.company || undefined,
-      line1: formData.addressLine1,
-      line2: formData.addressLine2 || undefined,
-      city: formData.city,
-      state: formData.state,
-      pincode: formData.pincode,
-      isDefault: false,
-    };
-
     const userId = state.auth.user?.id ?? null;
 
     const verifyRes = await fetch("/api/payments/verify", {
@@ -275,23 +357,12 @@ export default function CheckoutPage() {
         signature: response.razorpay_signature,
         orderData: {
           id: createData.boxzzOrderId,
-          items: items.map((item) => ({
-            productId: item.productId,
-            name: item.name,
-            price: item.price,
-            mrp: item.mrp || item.price,
-            quantity: item.quantity,
-            image: item.image,
-            variant: item.variant,
-            variantId: item.variantId,
-            variantLabel: item.variantLabel,
-            shippingWeight: item.shippingWeight,
-          })),
+          items: buildOrderItems(),
           total,
           subtotal,
           shipping,
           gst,
-          shippingAddress,
+          shippingAddress: buildShippingAddress(),
           notes: formData.notes || undefined,
           userId,
         },
@@ -306,6 +377,7 @@ export default function CheckoutPage() {
     if (verifyData.order) {
       addOrder(verifyData.order);
       setOrderId(verifyData.order.id);
+      setPlacedTotal(verifyData.order.total);
       setOrderPlaced(true);
       setPlacedPayment("online");
       clearCart();
@@ -356,7 +428,7 @@ export default function CheckoutPage() {
           </motion.div>
           <h1 className="text-2xl font-bold text-zinc-900 mt-4">Order Confirmed!</h1>
           <p className="text-sm text-zinc-500 mt-2">
-            Thank you for your order. We'll start preparing it right away.
+            Thank you for your order. We&apos;ll start preparing it right away.
           </p>
 
           <motion.div
@@ -384,6 +456,22 @@ export default function CheckoutPage() {
               </p>
             </motion.div>
           )}
+          {placedPayment === "cod" && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
+              className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Truck className="w-4 h-4 text-amber-600" />
+                <span className="text-sm font-medium text-zinc-800">Cash on Delivery</span>
+              </div>
+              <p className="text-xs text-zinc-600">
+                Your order has been placed successfully. Please keep {formatPrice(placedTotal)} ready to pay in cash when your order is delivered.
+              </p>
+            </motion.div>
+          )}
 
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -396,9 +484,9 @@ export default function CheckoutPage() {
               <span className="text-sm font-medium text-zinc-800">What happens next?</span>
             </div>
             <ol className="text-xs text-zinc-600 space-y-1.5 text-left ml-6 list-decimal">
-              <li>We'll confirm your order details via phone/SMS</li>
+              <li>We&apos;ll confirm your order details via phone/SMS</li>
               <li>Order will be processed within 24-48 hours</li>
-              <li>You'll receive tracking details once shipped</li>
+              <li>You&apos;ll receive tracking details once shipped</li>
               <li>Estimated delivery: 3-7 business days</li>
             </ol>
           </motion.div>
@@ -852,8 +940,8 @@ export default function CheckoutPage() {
                     </>
                   ) : (
                     <>
-                      <Package className="w-5 h-5" />
-                      Place Order - {formatPrice(total)}
+                      {selectedPayment === "cod" ? "Place COD Order" : "Pay Securely & Place Order"} - {formatPrice(total)}
+                      <ArrowRight className="w-5 h-5" />
                     </>
                   )}
                 </motion.button>

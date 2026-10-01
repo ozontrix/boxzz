@@ -48,6 +48,10 @@ const statusDot: Record<string, string> = {
   returned: "bg-rose-500",
 };
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 function IconSearch() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -107,12 +111,16 @@ function OrderTimeline({ status }: { status: OrderStatus }) {
 }
 
 function PaymentBadge({ order, className = "" }: { order: Order; className?: string }) {
-  const isOnline = (order.paymentMethod || "").toLowerCase().includes("online");
+  const paymentMethod = (order.paymentMethod || "").toLowerCase();
+  const isOnline = paymentMethod.includes("online");
+  const isCod = paymentMethod.includes("cash") || paymentMethod.includes("cod");
   const isPaid = order.paymentStatus === "paid";
   const isFailed = order.paymentStatus === "failed";
 
-  let label = "COD";
-  let classes = "bg-zinc-100 text-zinc-600 border-zinc-200";
+  let label = isCod ? "COD · PENDING" : "PENDING";
+  let classes = isCod
+    ? "bg-amber-50 text-amber-700 border-amber-200"
+    : "bg-zinc-100 text-zinc-600 border-zinc-200";
   if (isOnline) {
     if (isPaid) {
       label = "PAID";
@@ -160,7 +168,10 @@ export default function AdminOrdersPage() {
   }, []);
 
   useEffect(() => {
-    loadOrders();
+    const timeoutId = window.setTimeout(() => {
+      void loadOrders();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [loadOrders]);
 
   const filteredOrders = useMemo(() => {
@@ -191,8 +202,8 @@ export default function AdminOrdersPage() {
         setShowDetailModal(false);
         setSelectedOrder(null);
       }
-    } catch (err: any) {
-      alert("Error deleting order: " + (err.message || "Unknown error"));
+    } catch (err: unknown) {
+      alert("Error deleting order: " + getErrorMessage(err, "Unknown error"));
     } finally {
       setDeletingId(null);
     }
@@ -206,8 +217,8 @@ export default function AdminOrdersPage() {
       if (selectedOrder && selectedOrder.id === orderId) {
         setSelectedOrder({ ...selectedOrder, status: newStatus });
       }
-    } catch (err: any) {
-      alert("Error updating status: " + err.message);
+    } catch (err: unknown) {
+      alert("Error updating status: " + getErrorMessage(err, "Unknown error"));
     } finally {
       setStatusUpdating(false);
     }
@@ -220,8 +231,8 @@ export default function AdminOrdersPage() {
       await adminUpdateOrderTracking(selectedOrder.id, trackingInput);
       setOrders((prev) => prev.map((o) => (o.id === selectedOrder.id ? { ...o, trackingId: trackingInput } : o)));
       setSelectedOrder({ ...selectedOrder, trackingId: trackingInput });
-    } catch (err: any) {
-      alert("Error saving tracking: " + err.message);
+    } catch (err: unknown) {
+      alert("Error saving tracking: " + getErrorMessage(err, "Unknown error"));
     } finally {
       setSavingTracking(false);
     }
@@ -237,8 +248,8 @@ export default function AdminOrdersPage() {
         prev.map((o) => (o.id === selectedOrder.id ? { ...o, estimatedDelivery: iso } : o))
       );
       setSelectedOrder({ ...selectedOrder, estimatedDelivery: iso });
-    } catch (err: any) {
-      alert("Error saving delivery date: " + err.message);
+    } catch (err: unknown) {
+      alert("Error saving delivery date: " + getErrorMessage(err, "Unknown error"));
     } finally {
       setSavingDelivery(false);
     }
@@ -329,7 +340,7 @@ export default function AdminOrdersPage() {
           </div>
 
           <div class="section">
-            <p class="muted">Payment Method: ${selectedOrder.paymentMethod}${selectedOrder.paymentStatus === "paid" ? " (Paid)" : ""}</p>
+            <p class="muted">Payment Method: ${selectedOrder.paymentMethod}${selectedOrder.paymentStatus === "paid" ? " (Paid)" : selectedOrder.paymentStatus === "pending" ? " (Payment Pending)" : ""}</p>
             ${selectedOrder.paymentId ? `<p class="muted">Payment Reference: ${selectedOrder.paymentId}</p>` : ""}
             ${selectedOrder.razorpayOrderId ? `<p class="muted">Razorpay Order: ${selectedOrder.razorpayOrderId}</p>` : ""}
           </div>
@@ -655,6 +666,11 @@ export default function AdminOrdersPage() {
                           </p>
                         )}
                       </div>
+                    )}
+                    {selectedOrder.paymentStatus === "pending" && (
+                      <p className="text-xs mt-2 p-2 bg-amber-50 border border-amber-100 rounded-lg text-amber-800">
+                        <span className="font-semibold">Payment pending:</span> Collect payment on delivery.
+                      </p>
                     )}
                     {selectedOrder.notes && (
                       <p className="text-xs mt-2 p-2 bg-amber-50 border border-amber-100 rounded-lg text-amber-800">
