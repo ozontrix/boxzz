@@ -68,7 +68,7 @@ function ProductCardBase({ product, index = 0 }: ProductCardProps) {
       className="group relative"
     >
       <Link href={`/product/${product.slug}`} className="block">
-        <div className="relative aspect-[3/4] bg-zinc-50 rounded-2xl overflow-hidden border border-zinc-100 group-hover:border-primary/20 transition-colors">
+        <div className="relative aspect-square bg-zinc-50 rounded-2xl overflow-hidden border border-zinc-100 group-hover:border-primary/20 transition-colors">
           {/* Product Image */}
           <div
             className="absolute inset-0 flex items-center justify-center"
