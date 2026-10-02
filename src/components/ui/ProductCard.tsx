@@ -65,13 +65,13 @@ function ProductCardBase({ product, index = 0 }: ProductCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.3 }}
-      className="group relative"
+      className="group relative min-w-0 w-full"
     >
       <Link href={`/product/${product.slug}`} className="block">
         <div className="relative aspect-square w-full bg-zinc-50 rounded-2xl overflow-hidden border border-zinc-100 group-hover:border-primary/20 transition-colors">
           {/* Product Image */}
           <div
-            className="absolute inset-0 flex items-center justify-center"
+            className="absolute inset-1.5 flex items-center justify-center"
             onMouseEnter={() => hasSlider && setCurrentImageIndex(1)}
             onMouseLeave={() => hasSlider && setCurrentImageIndex(0)}
           >
@@ -87,7 +87,7 @@ function ProductCardBase({ product, index = 0 }: ProductCardProps) {
                 transformWidth={640}
                 // Keep the whole photo centered in the square frame, including
                 // on hover: zooming would crop images at the frame's edges.
-                className="object-contain object-center p-1.5"
+                className="aspect-square object-contain object-center"
                 loading="lazy"
                 decoding="async"
               />
