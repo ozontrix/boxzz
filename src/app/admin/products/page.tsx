@@ -193,11 +193,11 @@ export default function AdminProductsPage() {
               }`}
             >
               {/* Image + badges */}
-              <div className="relative h-36 bg-zinc-50 border-b border-zinc-100 overflow-hidden">
+              <div className="relative aspect-square w-full bg-zinc-50 border-b border-zinc-100 overflow-hidden">
                 {product.images?.[0] ? (
-                  <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+                  <img src={product.images[0]} alt={product.name} className="absolute inset-0 w-full h-full object-contain object-center p-1.5" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-5xl opacity-20">📦</div>
+                  <div className="absolute inset-0 flex items-center justify-center text-5xl opacity-20">📦</div>
                 )}
                 <div className="absolute top-2 left-2 flex flex-col gap-1">
                   {discount > 0 && (

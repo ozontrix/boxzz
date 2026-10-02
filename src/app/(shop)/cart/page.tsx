@@ -161,7 +161,7 @@ export default function CartPage() {
                           height={160}
                           mode="direct"
                           transformWidth={256}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain object-center"
                           loading="lazy"
                           decoding="async"
                         />

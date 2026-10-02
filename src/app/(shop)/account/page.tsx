@@ -207,7 +207,7 @@ function OrderCard({ order }: { order: Order }) {
                             height={96}
                             mode="direct"
                             transformWidth={160}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain object-center"
                             loading="lazy"
                             decoding="async"
                           />

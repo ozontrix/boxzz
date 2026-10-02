@@ -68,7 +68,7 @@ function ProductCardBase({ product, index = 0 }: ProductCardProps) {
       className="group relative"
     >
       <Link href={`/product/${product.slug}`} className="block">
-        <div className="relative aspect-square bg-zinc-50 rounded-2xl overflow-hidden border border-zinc-100 group-hover:border-primary/20 transition-colors">
+        <div className="relative aspect-square w-full bg-zinc-50 rounded-2xl overflow-hidden border border-zinc-100 group-hover:border-primary/20 transition-colors">
           {/* Product Image */}
           <div
             className="absolute inset-0 flex items-center justify-center"
@@ -85,10 +85,9 @@ function ProductCardBase({ product, index = 0 }: ProductCardProps) {
                 // directly (Supabase render endpoint or pre-optimized CDN)
                 // instead of spending a Vercel Image Transformation per card.
                 transformWidth={640}
-                // object-contain keeps the whole product photo visible inside
-                // the 3/4 card frame (object-cover was cropping the sides of
-                // the portrait source images).
-                className="object-contain p-1.5 group-hover:scale-105 transition-transform duration-700"
+                // Keep the whole photo centered in the square frame, including
+                // on hover: zooming would crop images at the frame's edges.
+                className="object-contain object-center p-1.5"
                 loading="lazy"
                 decoding="async"
               />
